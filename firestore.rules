@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Segnalazioni: tutti possono leggere e creare, nessuno può eliminare
+    match /reports/{reportId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll([
+        'emoji','label','dirProblema','corsia','km','kmLabel',
+        'confirmed','resolved','soccorsi','createdAt'
+      ]);
+      // Solo aggiornamenti specifici (no delete, no modifica campi sensibili)
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['confirmed','resolved','resolvedAt','soccorsi','note']);
+      allow delete: if false;
+    }
+
+    // Token FCM: ognuno può scrivere solo il proprio token
+    match /tokens/{tokenId} {
+      allow read:   if false;
+      allow write:  if true;
+      allow delete: if false;
+    }
+  }
+}
