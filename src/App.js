@@ -588,26 +588,54 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
     <div style={{borderRadius:14,marginBottom:10,overflow:"hidden",
       border:`1px solid ${ok?"#1a2a1a":sev.color+"44"}`,
       boxShadow:ok?"none":`0 2px 20px ${sev.color}18`}}>
-      <button onClick={onToggle}
-        style={{width:"100%",padding:"15px 16px",
+
+      {/* Header — div informativo, NON pulsante */}
+      <div
+        onClick={!ok?onToggle:undefined}
+        style={{
+          width:"100%",padding:"15px 16px",
           background:ok?"rgba(67,160,71,0.06)":`rgba(${hexToRgb(sev.color)},0.09)`,
-          border:"none",cursor:ok?"default":"pointer",
-          display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
-        <div style={{width:10,height:10,borderRadius:"50%",flexShrink:0,
-          background:sev.color,boxShadow:`0 0 8px ${sev.color}`}}/>
+          cursor:ok?"default":"pointer",userSelect:"none",
+          display:"flex",alignItems:"center",gap:12,
+        }}>
+        {/* Semaforo status */}
+        <div style={{
+          width:12,height:12,borderRadius:"50%",flexShrink:0,
+          background:sev.color,
+          boxShadow:ok?`0 0 6px ${sev.color}88`:`0 0 10px ${sev.color}`,
+        }}/>
         <div style={{flex:1}}>
-          <div style={{fontSize:17,fontWeight:900,color:"#fff",letterSpacing:2}}>{label}</div>
+          {/* Direzione — stile cartello stradale */}
+          <div style={{
+            fontSize:16,fontWeight:900,color:"#fff",letterSpacing:3,
+            textTransform:"uppercase",fontFamily:"'Barlow Condensed','Impact',sans-serif",
+          }}>{label}</div>
           {ok
-            ?<div style={{fontSize:12,color:"#3a6a3a",marginTop:1}}>Nessun imprevisto segnalato</div>
-            :<div style={{fontSize:12,color:"#aaa",marginTop:1}}>
+            ?<div style={{fontSize:11,color:"#3a6a3a",marginTop:2,letterSpacing:1}}>
+               🟢 Nessun imprevisto
+             </div>
+            :<div style={{fontSize:12,color:"#ccc",marginTop:2,letterSpacing:0.5}}>
                {reports.map(r=>r.emoji).join(" ")} {reports.map(r=>r.label).join(" · ")}
              </div>}
         </div>
-        {!ok&&<>
-          <div style={{background:sev.color,borderRadius:20,padding:"3px 9px",fontSize:12,fontWeight:800,color:"#fff"}}>{reports.length}</div>
-          <div style={{fontSize:14,color:"#555",transition:"transform 0.2s",transform:expanded?"rotate(180deg)":"rotate(0deg)"}}>▼</div>
-        </>}
-      </button>
+        {/* Badge conteggio + chevron solo se ci sono imprevisti */}
+        {!ok&&(
+          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <div style={{
+              background:sev.color,borderRadius:20,
+              padding:"2px 9px",fontSize:12,fontWeight:800,color:"#fff",
+              minWidth:22,textAlign:"center",
+            }}>{reports.length}</div>
+            <div style={{
+              fontSize:12,color:"#666",
+              transition:"transform 0.25s",
+              transform:expanded?"rotate(180deg)":"rotate(0deg)",
+            }}>▼</div>
+          </div>
+        )}
+      </div>
+
+      {/* Dettaglio espanso */}
       {expanded&&reports.length>0&&(
         <div style={{borderTop:`1px solid ${sev.color}22`,padding:"10px 12px",background:"rgba(0,0,0,0.3)"}}>
           {reports.map(r=>(
@@ -620,7 +648,7 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
                   <span style={{fontSize:14,fontWeight:800,color:r.color}}>{r.label}</span>
                   {r.soccorsi&&<span style={{fontSize:10,color:"#66bb6a",background:"rgba(67,160,71,0.15)",padding:"1px 7px",borderRadius:10,fontWeight:700}}>🚑 soccorsi allertati</span>}
                 </div>
-                <div style={{fontSize:11,color:"#666",marginTop:2}}>{r.kmLabel} · {r.time||""}</div>
+                <div style={{fontSize:11,color:"#666",marginTop:2}}>{r.kmLabel} · {r.loc||""} · {r.time||""}</div>
                 {r.note&&<div style={{fontSize:11,color:"#888",marginTop:3,fontStyle:"italic"}}>"{r.note}"</div>}
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
