@@ -4,7 +4,8 @@ import {
 } from "firebase/firestore";
 import { db, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from "./firebase";
 
-const REPORTS_COL = "reports";
+const REPORTS_COL      = "reports";
+const RESOLVED_HIDE_MS = 60 * 60 * 1000; // 1 ora
 
 // ── Ascolta segnalazioni in tempo reale ──────────────────────
 export function subscribeReports(callback) {
@@ -15,32 +16,42 @@ export function subscribeReports(callback) {
     orderBy("createdAt", "desc")
   );
   return onSnapshot(q, snap => {
-    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const now = Date.now();
+    const data = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => {
+        if (!r.resolved) return true;
+        if (!r.resolvedAt) return false;
+        const resolvedMs = r.resolvedAt.toDate
+          ? r.resolvedAt.toDate().getTime()
+          : new Date(r.resolvedAt).getTime();
+        return (now - resolvedMs) < RESOLVED_HIDE_MS;
+      });
     callback(data);
   });
 }
 
 // ── Invia nuova segnalazione ─────────────────────────────────
-export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel, note, color }) {
+export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel, note, color, lat, lng }) {
   const report = {
-    emoji, label, dirProblema, corsia, km, kmLabel, note: note || null,
-    color, confirmed: 0, resolved: false, resolvedAt: null,
+    emoji, label, dirProblema, corsia, km, kmLabel,
+    note: note || null, color,
+    lat: lat || null,
+    lng: lng || null,
+    confirmed: 0, resolved: false, resolvedAt: null,
     soccorsi: false, createdAt: serverTimestamp(),
   };
   const docRef = await addDoc(collection(db, REPORTS_COL), report);
-
-  // Notifica Telegram
-  await sendTelegram({ ...report, id: docRef.id });
-
+  sendTelegram({ ...report, id: docRef.id }).catch(e =>
+    console.warn("Telegram non raggiunto:", e.message)
+  );
   return docRef.id;
 }
 
-// ── Conferma segnalazione ────────────────────────────────────
 export async function confirmReport(id, currentCount) {
   await updateDoc(doc(db, REPORTS_COL, id), { confirmed: currentCount + 1 });
 }
 
-// ── Risolvi segnalazione ─────────────────────────────────────
 export async function resolveReport(id) {
   await updateDoc(doc(db, REPORTS_COL, id), {
     resolved: true,
@@ -48,48 +59,39 @@ export async function resolveReport(id) {
   });
 }
 
-// ── Riattiva segnalazione ────────────────────────────────────
 export async function reactivateReport(id) {
-  await updateDoc(doc(db, REPORTS_COL, id), {
-    resolved: false,
-    resolvedAt: null,
-  });
+  await updateDoc(doc(db, REPORTS_COL, id), { resolved: false, resolvedAt: null });
 }
 
-// ── Aggiorna flag soccorsi ───────────────────────────────────
 export async function toggleSoccorsi(id, current) {
   await updateDoc(doc(db, REPORTS_COL, id), { soccorsi: !current });
 }
 
-// ── Aggiungi nota ────────────────────────────────────────────
 export async function addNote(id, note) {
   await updateDoc(doc(db, REPORTS_COL, id), { note });
 }
 
-// ── Invia messaggio Telegram ─────────────────────────────────
-async function sendTelegram({ emoji, label, dirProblema, corsia, km, kmLabel, note, soccorsi }) {
-  if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === "INSERISCI_QUI") return;
+async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi, lat, lng }) {
+  if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("INSERISCI") ||
+      !TELEGRAM_CHAT_ID   || TELEGRAM_CHAT_ID.includes("SOSTITUISCI")) return;
 
   const dir     = dirProblema === "FI" ? "→ Firenze" : "→ Siena";
   const corsiaT = corsia === "propria" ? "Corsia principale" : "Corsia opposta";
-  const lat     = 43.3 + (km / 100);   // approssimazione per demo; in prod usa coords reali
-  const lng     = 11.1 + (km / 200);
 
   const text = [
-    `${emoji} *${label}* segnalato`,
+    `${emoji} *${label}* segnalato sulla SS2 Cassia`,
+    ``,
     `🧭 Direzione: *${dir}*`,
-    `📍 Posizione: *${kmLabel}* SS2 Cassia`,
+    `📍 Posizione: *${kmLabel}*`,
     `🛣 ${corsiaT}`,
-    note ? `📝 ${note}` : null,
+    note     ? `📝 ${note}` : null,
     soccorsi ? `🚑 Soccorsi già allertati — non chiamare il 112` : null,
+    lat && lng ? `\n[📌 Apri posizione su Maps](https://maps.google.com/?q=${lat},${lng})` : null,
     ``,
-    `[📌 Apri su Maps](https://maps.google.com/?q=${lat},${lng})`,
-    ``,
-    `_Segnalazione via app Siena-Firenze_`,
+    `_Segnalazione via app Siena↔Firenze_`,
   ].filter(Boolean).join("\n");
 
-  // Messaggio testo
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  const msgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -99,11 +101,14 @@ async function sendTelegram({ emoji, label, dirProblema, corsia, km, kmLabel, no
       disable_web_page_preview: false,
     }),
   });
+  const msgData = await msgRes.json();
+  if (!msgData.ok) { console.warn("Telegram error:", msgData.description); return; }
 
-  // Pin posizione nativo Telegram
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendLocation`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, latitude: lat, longitude: lng }),
-  });
+  if (lat && lng) {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendLocation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, latitude: lat, longitude: lng }),
+    });
+  }
 }
