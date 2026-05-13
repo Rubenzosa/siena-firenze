@@ -43,12 +43,19 @@ export default function App() {
   // Auth anonima
   useEffect(()=>{ signInAnonymously(auth).catch(console.error); },[]);
 
-  // Dati Firestore — polling ogni 30 secondi (ottimizza letture)
+  // Dati Firestore — polling ogni 30s + re-fetch immediato al ritorno in foreground
   const [reports, setReports] = useState([]);
   useEffect(()=>{
-    fetchReports(setReports); // caricamento immediato
-    const interval = setInterval(()=>fetchReports(setReports), 30000);
-    return ()=>clearInterval(interval);
+    let interval;
+    const start = () => {
+      fetchReports(setReports);
+      clearInterval(interval);
+      interval = setInterval(()=>fetchReports(setReports), 30000);
+    };
+    start();
+    const onVisible = ()=>{ if(document.visibilityState==="visible") start(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return ()=>{ clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   },[]);
 
   // IDs segnalazioni già confermate da questo dispositivo (anti-spam)
