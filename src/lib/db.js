@@ -77,22 +77,21 @@ export async function addNote(id, note) {
 
 // ── Invia messaggio Telegram ─────────────────────────────────
 async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi, lat, lng }) {
-  console.log("📍 Telegram coords:", lat, lng);
   if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("INSERISCI") ||
       !TELEGRAM_CHAT_ID   || TELEGRAM_CHAT_ID.includes("SOSTITUISCI")) return;
 
-  const dir     = dirProblema === "FI" ? "→ Firenze" : "→ Siena";
-  const corsiaT = corsia === "propria" ? "Corsia principale" : "Corsia opposta";
+  // dirProblema è già la direzione DOVE SI TROVA il problema
+  // (calcolato nell'app: se guidatore → FI e segna corsia opposta → problema verso SI)
+  const dirProblemaLabel = dirProblema === "FI" ? "→ FIRENZE" : "→ SIENA";
 
   const text = [
-    `${emoji} *${label}* segnalato sulla SS2 Cassia`,
+    `${emoji} *${label}* — Autopalio RA3`,
     ``,
-    `🧭 Direzione: *${dir}*`,
+    `🚨 Problema in direzione: *${dirProblemaLabel}*`,
     `📍 Posizione: *${kmLabel}* _(±300 m)_`,
-    `🛣 ${corsiaT}`,
     note     ? `📝 ${note}` : null,
-    soccorsi ? `🚑 Soccorsi già allertati — non chiamare il 112` : null,
-    (lat && lng) ? `\n[📌 Apri posizione su Maps](https://maps.google.com/?q=${lat},${lng})` : null,
+    soccorsi ? `🚑 Soccorsi già allertati — non richiamare il 112` : null,
+    (lat && lng) ? `\n[📌 Apri su Maps](https://maps.google.com/?q=${lat},${lng})` : null,
     ``,
     `_Segnalazione via app Siena↔Firenze_`,
   ].filter(Boolean).join("\n");

@@ -141,7 +141,8 @@ export default function App() {
   }
 
   return(
-    <div style={{minHeight:"100vh",background:"#080a0f",
+    <div style={{
+      height:"100dvh",background:"#080a0f",
       fontFamily:"'Barlow Condensed','Impact','Arial Narrow',sans-serif",
       color:"#f0f0f0",display:"flex",flexDirection:"column",
       maxWidth:430,margin:"0 auto",position:"relative",overflow:"hidden"}}>
@@ -208,7 +209,7 @@ export default function App() {
         ))}
       </div>
 
-      <div style={{flex:1,padding:"18px 14px",position:"relative",zIndex:2,overflowY:"auto"}}>
+      <div style={{flex:1,padding:"18px 14px",position:"relative",zIndex:2,overflowY:"auto",minHeight:0}}>
 
         {/* ══ HOME ══ */}
         {screen==="home"&&(
@@ -447,9 +448,12 @@ export default function App() {
       </div>
 
       {/* FOOTER */}
-      <div style={{padding:"9px 20px 14px",borderTop:"1px solid #111520",
-        display:"flex",justifyContent:"center",fontSize:10,color:"#2a2e40",letterSpacing:2,
-        background:"rgba(8,10,15,0.97)"}}>
+      <div style={{
+        flexShrink:0,padding:"6px 12px",borderTop:"1px solid #111520",
+        display:"flex",justifyContent:"center",alignItems:"center",
+        fontSize:9,color:"#2a2e40",letterSpacing:1.5,whiteSpace:"nowrap",
+        background:"rgba(8,10,15,0.97)",overflow:"hidden",
+      }}>
         🔒 NESSUN DATO PERSONALE · GPS SOLO IN SEGNALAZIONE
       </div>
 
