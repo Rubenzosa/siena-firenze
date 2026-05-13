@@ -2,13 +2,13 @@
   <!-- Background: solid dark square, no border radius -->
   <rect width="512" height="512" fill="#080a0f"/>
   <!-- Top red accent line -->
-  <rect x="0" y="0" width="512" height="6" fill="#E53935"/>
+  <rect x="0" y="0" width="512" height="6" fill="#1565C0"/>
   <!-- Bottom red accent line -->
-  <rect x="0" y="506" width="512" height="6" fill="#E53935"/>
+  <rect x="0" y="506" width="512" height="6" fill="#1565C0"/>
   <!-- Left arrow ← (head pointing left + tail) -->
-  <polygon points="72,256 196,156 196,356" fill="#E53935"/>
-  <rect x="196" y="223" width="54" height="66" fill="#E53935"/>
+  <polygon points="72,256 196,156 196,356" fill="#1565C0"/>
+  <rect x="196" y="223" width="54" height="66" fill="#1565C0"/>
   <!-- Right arrow → (tail + head pointing right) -->
-  <rect x="262" y="223" width="54" height="66" fill="#E53935"/>
-  <polygon points="440,256 316,156 316,356" fill="#E53935"/>
+  <rect x="262" y="223" width="54" height="66" fill="#1565C0"/>
+  <polygon points="440,256 316,156 316,356" fill="#1565C0"/>
 </svg>

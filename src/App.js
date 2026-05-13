@@ -256,30 +256,29 @@ export default function App() {
           <div style={{fontSize:21,fontWeight:900,letterSpacing:1.5,lineHeight:1.1}}>
             SIENA{" "}
             <span style={{display:"inline-flex",gap:1}}>
-              <span style={{color:"#E53935",display:"inline-block",
+              <span style={{color:"#42a5f5",display:"inline-block",
                 animation:"arrowLeft 1.6s cubic-bezier(0.4,0,0.2,1) 0.5s 1 none"}}>←</span>
-              <span style={{color:"#E53935",display:"inline-block",
+              <span style={{color:"#42a5f5",display:"inline-block",
                 animation:"arrowRight 1.6s cubic-bezier(0.4,0,0.2,1) 0.5s 1 none"}}>→</span>
             </span>
             {" "}FIRENZE
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <button onClick={()=>setShowNotify(true)}
-            style={{background:"transparent",border:"1px solid",
-              borderColor:(permission==="granted"&&notifEnabled)?"#E53935":"#1e2030",
-              borderRadius:8,padding:"5px 10px",cursor:"pointer",
-              color:(permission==="granted"&&notifEnabled)?"#E53935":"#444",
-              fontSize:10,fontWeight:800,letterSpacing:1.5,lineHeight:1,
-              boxShadow:(permission==="granted"&&notifEnabled)?"0 0 10px rgba(229,57,53,0.3)":"none"}}>
-            {(permission==="granted"&&notifEnabled)?"NOTIF. ON":"NOTIF. OFF"}
-          </button>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
           {activeReports.length>0&&
-            <div style={{background:"#E53935",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:800}}>
-              {activeReports.length} ATTIVE
+            <div style={{background:"#E53935",borderRadius:20,padding:"2px 8px",
+              fontSize:11,fontWeight:800,letterSpacing:0.5}}>
+              {activeReports.length}
             </div>}
-          <div style={{width:9,height:9,borderRadius:"50%",background:pulse?"#43A047":"#1b5e20",
-            boxShadow:pulse?"0 0 14px #43A047":"none",transition:"all 0.6s"}}/>
+          <div style={{width:8,height:8,borderRadius:"50%",background:pulse?"#43A047":"#1b5e20",
+            boxShadow:pulse?"0 0 12px #43A047":"none",transition:"all 0.6s"}}/>
+          <button onClick={()=>setShowNotify(true)}
+            style={{background:"transparent",border:"none",padding:"4px",
+              cursor:"pointer",lineHeight:1,fontSize:20,
+              filter:(permission==="granted"&&notifEnabled)?"drop-shadow(0 0 6px #42a5f5)":"none",
+              opacity:(permission==="granted"&&notifEnabled)?1:0.35}}>
+            🔔
+          </button>
         </div>
       </div>
 
