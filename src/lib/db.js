@@ -77,6 +77,7 @@ export async function addNote(id, note) {
 
 // ── Invia messaggio Telegram ─────────────────────────────────
 async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi, lat, lng }) {
+  console.log("📍 Telegram coords:", lat, lng);
   if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("INSERISCI") ||
       !TELEGRAM_CHAT_ID   || TELEGRAM_CHAT_ID.includes("SOSTITUISCI")) return;
 

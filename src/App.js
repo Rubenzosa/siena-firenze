@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
@@ -51,7 +51,9 @@ export default function App() {
   },[]);
 
   // GPS
-  const { position, loading: gpsLoading } = useGPS();
+  const { position, loading: gpsLoading, snapshotNow } = useGPS();
+  // frozenPosition: posizione congelata al momento del tap "SEGNALA ORA"
+  const [frozenPosition, setFrozenPosition] = useState(null);
 
   // Notifiche
   const { permission, requestPermission, incomingAlert, setIncomingAlert } = useNotifications();
@@ -93,19 +95,22 @@ export default function App() {
 
   function reset(){
     setStep(0);setMyDir(null);setSelAlert(null);setCorsia(null);
-    setAltroText("");setNotaText("");setSending(false);
+    setAltroText("");setNotaText("");setSending(false);setFrozenPosition(null);
   }
   function goHome(){ setScreen("home"); reset(); }
 
+  // Usa frozenPosition (snapshot al tap) se disponibile, altrimenti position live
+  const activePos = frozenPosition || position;
+
   function checkDuplicates(corsiaVal){
-    if(!position){ setStep(3); return; }
+    if(!activePos){ setStep(3); return; }
     const dp=corsiaVal==="propria"?myDir:(myDir==="FI"?"SI":"FI");
-    const dup=activeReports.find(r=>r.dirProblema===dp&&Math.abs(r.km-position.km)<2);
+    const dup=activeReports.find(r=>r.dirProblema===dp&&Math.abs(r.km-activePos.km)<2);
     if(dup) setDupModal(dup); else setStep(3);
   }
 
   async function handleSend(){
-    if(!position){ alert("GPS non disponibile. Attendi la posizione."); return; }
+    if(!activePos){ alert("GPS non disponibile. Attendi la posizione."); return; }
     setSending(true);
     try {
       await addReport({
@@ -113,8 +118,10 @@ export default function App() {
         label: selAlert.id==="altro"?(altroText||"ALTRO"):selAlert.label,
         dirProblema,
         corsia,
-        km: position.km,
-        kmLabel: position.kmLabel,
+        km:      activePos.km,
+        kmLabel: activePos.kmLabel,
+        lat:     activePos.lat,   // coordinate reali per Maps e Telegram
+        lng:     activePos.lng,
         note: notaText||null,
         color: selAlert.color,
       });
@@ -223,7 +230,18 @@ export default function App() {
             <div style={{fontSize:11,color:"#444",letterSpacing:4,textTransform:"uppercase",marginBottom:12}}>
               Segnala imprevisto
             </div>
-            <BigBtn onClick={()=>{setScreen("flow");setStep(0);}}>🚨 SEGNALA ORA</BigBtn>
+    <BigBtn onClick={async ()=>{
+      // ── SNAPSHOT GPS AL TAP ──────────────────────────────
+      // Congela la posizione in questo preciso momento, prima
+      // che l'utente compili il form (possono passare 10-30 sec)
+      try {
+        const snap = await snapshotNow();
+        setFrozenPosition(snap);
+      } catch(e) {
+        setFrozenPosition(position); // fallback alla posizione watch
+      }
+      setScreen("flow"); setStep(0);
+    }}>🚨 SEGNALA ORA</BigBtn>
 
             {/* GPS status */}
             <div style={{display:"flex",alignItems:"center",gap:8,marginTop:14,
@@ -305,9 +323,11 @@ export default function App() {
                 background:"rgba(67,160,71,0.1)",border:"1px solid rgba(67,160,71,0.3)"}}>
                 <span style={{fontSize:20}}>📍</span>
                 <div>
-                  <div style={{fontSize:13,fontWeight:800,color:"#66bb6a"}}>Posizione GPS automatica</div>
+                  <div style={{fontSize:13,fontWeight:800,color:"#66bb6a"}}>
+                    Posizione registrata al tap ✓
+                  </div>
                   <div style={{fontSize:12,color:"#555"}}>
-                    {position?`${position.kmLabel} · ${dirLabel(dirProblema)}`:"Rilevamento in corso..."}
+                    {activePos?`${activePos.kmLabel} · ${dirLabel(dirProblema)}`:"Rilevamento in corso..."}
                   </div>
                 </div>
               </div>
@@ -337,19 +357,19 @@ export default function App() {
                   </div>
                 </div>
                 <IR icon="🧭" label="Direzione"  value={dirLabel(dirProblema)}/>
-                <IR icon="📍" label="Posizione"  value={position?`${position.kmLabel} (GPS auto)`:"..."}/>
+                <IR icon="📍" label="Posizione"  value={activePos?`${activePos.kmLabel} (registrata al tap)`:"..."}/>
                 <IR icon="📣" label="Telegram"   value="Pin + messaggio al gruppo"/>
                 <IR icon="🔔" label="Push"        value="Notifica a tutti gli utenti"/>
                 {notaText&&<IR icon="📝" label="Nota" value={notaText}/>}
               </div>
-              <button onClick={handleSend} disabled={sending||!position}
+              <button onClick={handleSend} disabled={sending||!activePos}
                 style={{width:"100%",padding:"20px 0",borderRadius:14,border:"none",
-                  background:(sending||!position)?"#1a1e2a":`linear-gradient(135deg,${selAlert.color},${selAlert.color}bb)`,
+                  background:(sending||!activePos)?"#1a1e2a":`linear-gradient(135deg,${selAlert.color},${selAlert.color}bb)`,
                   color:"#fff",fontSize:20,fontWeight:900,letterSpacing:3,
-                  cursor:(sending||!position)?"not-allowed":"pointer",
-                  boxShadow:(sending||!position)?"none":`0 6px 28px ${selAlert.glow}50`,
+                  cursor:(sending||!activePos)?"not-allowed":"pointer",
+                  boxShadow:(sending||!activePos)?"none":`0 6px 28px ${selAlert.glow}50`,
                   transition:"all 0.3s",textTransform:"uppercase"}}>
-                {sending?"⏳ Invio in corso...":!position?"⏳ Attendi GPS...":"🚀 SEGNALA ORA"}
+                {sending?"⏳ Invio in corso...":!activePos?"⏳ Attendi GPS...":"🚀 SEGNALA ORA"}
               </button>
               <div style={{textAlign:"center",marginTop:10,fontSize:10,color:"#2a2e40",letterSpacing:2}}>
                 NESSUN DATO PERSONALE INVIATO
@@ -364,7 +384,7 @@ export default function App() {
             <div style={{fontSize:70,marginBottom:18,animation:"pop 0.4s ease"}}>✅</div>
             <div style={{fontSize:26,fontWeight:900,marginBottom:8}}>Segnalazione inviata!</div>
             <div style={{fontSize:14,color:"#666",lineHeight:1.9}}>
-              📍 {position?.kmLabel} SS2 registrato<br/>
+              📍 {activePos?.kmLabel} SS2 registrato<br/>
               📣 Gruppo Telegram avvisato<br/>
               🔔 Notifica push inviata
             </div>
@@ -501,7 +521,7 @@ export default function App() {
           <div style={{display:"flex",gap:9}}>
             <button onClick={()=>setResolveId(null)}
               style={{flex:1,padding:"13px",borderRadius:10,border:"1px solid #252836",background:"rgba(255,255,255,0.04)",color:"#888",fontSize:14,fontWeight:700,cursor:"pointer"}}>Annulla</button>
-            <button onClick={()=>resolveReport(resolveId)}
+            <button onClick={async()=>{await resolveReport(resolveId);setResolveId(null);}}
               style={{flex:1,padding:"13px",borderRadius:10,border:"none",background:"#2e7d32",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer"}}>SÌ, RISOLTO</button>
           </div>
         </Modal>
