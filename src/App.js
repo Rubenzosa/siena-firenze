@@ -797,36 +797,29 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onNoreport,hasC
                 </div>
                 {r.note&&<div style={{fontSize:11,color:"#888",marginTop:3,fontStyle:"italic"}}>"{r.note}"</div>}
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0}}>
-                <div style={{display:"flex",gap:4}}>
-                  <button
-                    disabled={hasConfirmed(r.id)||hasNoVoted(r.id)}
-                    onClick={()=>onConfirm(r.id,r.confirmed)}
-                    style={{padding:"5px 9px",borderRadius:7,
-                      border:`1px solid ${hasConfirmed(r.id)?"#2e7d3244":"#2e7d3266"}`,
-                      background:hasConfirmed(r.id)?"rgba(67,160,71,0.25)":"rgba(67,160,71,0.15)",
-                      color:hasConfirmed(r.id)?"#66bb6a":"#66bb6a",
-                      fontSize:11,fontWeight:900,
-                      cursor:hasConfirmed(r.id)||hasNoVoted(r.id)?"default":"pointer",
-                      letterSpacing:1,opacity:hasNoVoted(r.id)?0.3:1}}>
-                    SI
-                  </button>
-                  <button
-                    disabled={hasNoVoted(r.id)||hasConfirmed(r.id)}
-                    onClick={()=>onNoreport(r.id,r.noCount||0)}
-                    style={{padding:"5px 9px",borderRadius:7,
-                      border:`1px solid ${hasNoVoted(r.id)?"#E5393566":"#E5393544"}`,
-                      background:hasNoVoted(r.id)?"rgba(229,57,53,0.2)":"rgba(229,57,53,0.1)",
-                      color:"#E53935",fontSize:11,fontWeight:900,
-                      cursor:hasNoVoted(r.id)||hasConfirmed(r.id)?"default":"pointer",
-                      letterSpacing:1,opacity:hasConfirmed(r.id)?0.3:1}}>
-                    NO
-                  </button>
-                </div>
-                <button onClick={()=>onMap(r)}
-                  style={{padding:"4px 8px",borderRadius:7,border:"1px solid #1e3a5f",
-                    background:"rgba(2,88,161,0.12)",color:"#42a5f5",
-                    fontSize:10,cursor:"pointer",letterSpacing:0.5}}>MAP</button>
+              <div style={{display:"flex",gap:4,flexShrink:0}}>
+                <button
+                  disabled={hasConfirmed(r.id)||hasNoVoted(r.id)}
+                  onClick={()=>onConfirm(r.id,r.confirmed)}
+                  style={{padding:"5px 9px",borderRadius:7,
+                    border:`1px solid ${hasConfirmed(r.id)?"#2e7d3244":"#2e7d3266"}`,
+                    background:hasConfirmed(r.id)?"rgba(67,160,71,0.25)":"rgba(67,160,71,0.15)",
+                    color:"#66bb6a",fontSize:11,fontWeight:900,
+                    cursor:hasConfirmed(r.id)||hasNoVoted(r.id)?"default":"pointer",
+                    letterSpacing:1,opacity:hasNoVoted(r.id)?0.3:1}}>
+                  SI
+                </button>
+                <button
+                  disabled={hasNoVoted(r.id)||hasConfirmed(r.id)}
+                  onClick={()=>onNoreport(r.id,r.noCount||0)}
+                  style={{padding:"5px 9px",borderRadius:7,
+                    border:`1px solid ${hasNoVoted(r.id)?"#E5393566":"#E5393544"}`,
+                    background:hasNoVoted(r.id)?"rgba(229,57,53,0.2)":"rgba(229,57,53,0.1)",
+                    color:"#E53935",fontSize:11,fontWeight:900,
+                    cursor:hasNoVoted(r.id)||hasConfirmed(r.id)?"default":"pointer",
+                    letterSpacing:1,opacity:hasConfirmed(r.id)?0.3:1}}>
+                  NO
+                </button>
               </div>
             </div>
           ))}
