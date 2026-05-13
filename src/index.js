@@ -1,15 +1,25 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App";
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<React.StrictMode><App /></React.StrictMode>);
-
-// Registra Service Worker per notifiche push in background
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/firebase-messaging-sw.js")
-      .catch(err => console.error("SW registration failed:", err));
-  });
-}
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#080a0f" />
+    <meta name="description" content="Segnalazioni imprevisti RA3 Autopalio Siena-Firenze" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SI↔FI" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icon-192.png" />
+    <title>Siena ↔ Firenze</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #080a0f; font-family: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif; }
+      #root { min-height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <noscript>Abilita JavaScript per usare l'app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

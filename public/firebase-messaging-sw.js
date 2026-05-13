@@ -4,30 +4,27 @@
 importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
 
-// ╔══════════════════════════════════════════════════════════╗
-// ║  Copia qui lo stesso firebaseConfig che hai messo        ║
-// ║  in src/lib/firebase.js                                  ║
-// ╚══════════════════════════════════════════════════════════╝
 firebase.initializeApp({
-  apiKey:            "INSERISCI_QUI",
-  authDomain:        "INSERISCI_QUI",
-  projectId:         "INSERISCI_QUI",
-  storageBucket:     "INSERISCI_QUI",
-  messagingSenderId: "INSERISCI_QUI",
-  appId:             "INSERISCI_QUI",
+  apiKey:            "AIzaSyCti3ij7PQ_hcrX-xuEs3BqlPZpay8hVks",
+  authDomain:        "siena-firenze.firebaseapp.com",
+  projectId:         "siena-firenze",
+  storageBucket:     "siena-firenze.firebasestorage.app",
+  messagingSenderId: "143628745682",
+  appId:             "1:143628745682:web:0e8f19ff316400ad85260b",
 });
 
 const messaging = firebase.messaging();
 
 // Notifica in background
 messaging.onBackgroundMessage((payload) => {
-  const { title, body } = payload.notification;
-  self.registration.showNotification(title, {
-    body,
+  const { title, body } = payload.notification || {};
+  self.registration.showNotification(title || "Siena-Firenze", {
+    body: body || "Nuovo imprevisto segnalato",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     vibrate: [200, 100, 200],
     data: payload.data,
+    requireInteraction: false,
   });
 });
 
