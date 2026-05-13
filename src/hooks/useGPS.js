@@ -1,21 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-// Punti km progressivi SS2 Cassia (Siena-Firenze)
-// Coordinate reali dei km principali
-const SS2_KM_POINTS = [
-  { km: 0,  lat: 43.3188, lng: 11.3307 }, // Siena
-  { km: 5,  lat: 43.3580, lng: 11.3050 },
-  { km: 10, lat: 43.3970, lng: 11.2750 },
-  { km: 15, lat: 43.4350, lng: 11.2500 },
-  { km: 20, lat: 43.4720, lng: 11.2200 },
-  { km: 25, lat: 43.5100, lng: 11.1950 },
-  { km: 30, lat: 43.5480, lng: 11.1700 },
-  { km: 35, lat: 43.5850, lng: 11.1450 },
-  { km: 40, lat: 43.6220, lng: 11.1200 },
-  { km: 45, lat: 43.6600, lng: 11.0950 },
-  { km: 50, lat: 43.6980, lng: 11.0700 },
-  { km: 55, lat: 43.7350, lng: 11.0500 },
-  { km: 60, lat: 43.7720, lng: 11.0300 }, // Firenze Sud
+// ── Svincoli RA3 Autopalio Siena-Firenze ──────────────────────
+// Km progressivi ufficiali: Km 0 = Siena Nord, Km 56 = Firenze Impruneta
+// Coordinate GPS verificate su Google Maps per ogni svincolo
+const RA3_POINTS = [
+  { km:  0.0, lat: 43.3394, lng: 11.2994, loc: "Siena Nord" },
+  { km:  6.0, lat: 43.3760, lng: 11.2600, loc: "Badesse" },
+  { km: 10.0, lat: 43.3958, lng: 11.2191, loc: "Monteriggioni" },
+  { km: 16.0, lat: 43.4280, lng: 11.1720, loc: "Colle Val d'Elsa Sud" },
+  { km: 18.0, lat: 43.4420, lng: 11.1580, loc: "Colle Val d'Elsa Nord" },
+  { km: 23.0, lat: 43.4660, lng: 11.1410, loc: "Poggibonsi" },
+  { km: 25.0, lat: 43.4820, lng: 11.1350, loc: "Poggibonsi Nord" },
+  { km: 35.0, lat: 43.5380, lng: 11.1430, loc: "San Donato in Poggio" },
+  { km: 40.0, lat: 43.5650, lng: 11.1460, loc: "Tavarnelle Val di Pesa" },
+  { km: 45.0, lat: 43.5990, lng: 11.1540, loc: "Bargino" },
+  { km: 48.0, lat: 43.6190, lng: 11.1680, loc: "San Casciano Sud" },
+  { km: 51.0, lat: 43.6430, lng: 11.1830, loc: "San Casciano Nord" },
+  { km: 53.0, lat: 43.6640, lng: 11.2050, loc: "Impruneta / Greve in Chianti" },
+  { km: 56.4, lat: 43.6930, lng: 11.2280, loc: "Firenze (Fine RA3)" },
 ];
 
 function distanceKm(lat1, lng1, lat2, lng2) {
@@ -30,22 +32,21 @@ function distanceKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Calcola km progressivo SS2 dalla posizione GPS
-function gpsToKmSS2(lat, lng) {
+function gpsToKmRA3(lat, lng) {
   let minDist = Infinity;
-  let closestKm = null;
   let closestIdx = 0;
 
-  SS2_KM_POINTS.forEach((p, i) => {
+  RA3_POINTS.forEach((p, i) => {
     const d = distanceKm(lat, lng, p.lat, p.lng);
-    if (d < minDist) { minDist = d; closestKm = p.km; closestIdx = i; }
+    if (d < minDist) { minDist = d; closestIdx = i; }
   });
 
-  // Interpolazione tra i due punti più vicini
-  if (closestIdx > 0 && closestIdx < SS2_KM_POINTS.length - 1) {
-    const prev = SS2_KM_POINTS[closestIdx - 1];
-    const next = SS2_KM_POINTS[closestIdx + 1];
-    const curr = SS2_KM_POINTS[closestIdx];
+  // Interpolazione lineare tra punti adiacenti
+  let closestKm = RA3_POINTS[closestIdx].km;
+  if (closestIdx > 0 && closestIdx < RA3_POINTS.length - 1) {
+    const prev = RA3_POINTS[closestIdx - 1];
+    const next = RA3_POINTS[closestIdx + 1];
+    const curr = RA3_POINTS[closestIdx];
     const dPrev = distanceKm(lat, lng, prev.lat, prev.lng);
     const dNext = distanceKm(lat, lng, next.lat, next.lng);
     const dCurr = distanceKm(lat, lng, curr.lat, curr.lng);
@@ -58,42 +59,79 @@ function gpsToKmSS2(lat, lng) {
     }
   }
 
+  const kmRounded = Math.round(closestKm * 10) / 10;
+  const kmInt     = Math.floor(kmRounded);
+  const kmDec     = Math.round((kmRounded - kmInt) * 1000);
+  const loc       = RA3_POINTS[closestIdx].loc;
+
   return {
-    km: Math.round(closestKm * 10) / 10,
-    kmLabel: `Km ${Math.floor(closestKm)}+${String(Math.round((closestKm % 1) * 1000)).padStart(3,"0")}`,
-    lat, lng,
-    onRoute: minDist < 1.5, // entro 1.5km dalla SS2
+    km: kmRounded,
+    kmLabel: `Km ${kmInt}+${String(kmDec).padStart(3, "0")}`,
+    kmShort: `Km ${kmInt}`,
+    loc,
+    lat,
+    lng,
+    onRoute: minDist < 2.0,
   };
 }
 
 export function useGPS() {
-  const [position, setPosition] = useState(null); // { km, kmLabel, lat, lng, onRoute }
+  const [position, setPosition] = useState(null);
   const [error, setError]       = useState(null);
   const [loading, setLoading]   = useState(true);
+  const positionRef             = useRef(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setError("GPS non disponibile");
+      setError("GPS non disponibile su questo dispositivo");
       setLoading(false);
       return;
     }
 
-    const watcher = navigator.geolocation.watchPosition(
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const result = gpsToKmSS2(pos.coords.latitude, pos.coords.longitude);
+        const result = gpsToKmRA3(pos.coords.latitude, pos.coords.longitude);
+        positionRef.current = result;
         setPosition(result);
         setLoading(false);
         setError(null);
       },
       (err) => {
-        setError("Posizione non disponibile");
+        let msg = "Posizione non disponibile";
+        if (err.code === 1) msg = "Permesso GPS negato. Attivalo nelle impostazioni.";
+        if (err.code === 3) msg = "GPS: timeout. Verifica la connessione.";
+        setError(msg);
         setLoading(false);
       },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
 
-    return () => navigator.geolocation.clearWatch(watcher);
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  return { position, error, loading };
+  // Snapshot istantaneo al tap "SEGNALA ORA"
+  const snapshotNow = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (positionRef.current) {
+        resolve(positionRef.current);
+        return;
+      }
+      if (!navigator.geolocation) {
+        reject(new Error("GPS non disponibile"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const result = gpsToKmRA3(pos.coords.latitude, pos.coords.longitude);
+          positionRef.current = result;
+          setPosition(result);
+          resolve(result);
+        },
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    });
+  }, []);
+
+  return { position, error, loading, snapshotNow };
 }
