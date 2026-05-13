@@ -20,6 +20,24 @@ const RA3_POINTS = [
   { km: 56.4, lat: 43.6930, lng: 11.2280, loc: "Firenze (Fine RA3)" },
 ];
 
+function getLocInfo(kmVal) {
+  const pts = RA3_POINTS;
+  if (kmVal <= pts[0].km + 0.4) return `svincolo ${pts[0].loc}`;
+  if (kmVal >= pts[pts.length - 1].km - 0.4) return pts[pts.length - 1].loc;
+
+  let segIdx = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (kmVal >= pts[i].km && kmVal <= pts[i + 1].km) { segIdx = i; break; }
+  }
+
+  const s = pts[segIdx];
+  const e = pts[segIdx + 1];
+  const frac = (kmVal - s.km) / (e.km - s.km);
+
+  if (frac > 0.65) return `prima dell'uscita ${e.loc}`;
+  return `dopo l'uscita ${s.loc}`;
+}
+
 function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -69,6 +87,7 @@ function gpsToKmRA3(lat, lng) {
     kmLabel: `Km ${kmInt}+${String(kmDec).padStart(3, "0")}`,
     kmShort: `Km ${kmInt}`,
     loc,
+    locInfo: getLocInfo(kmRounded),
     lat,
     lng,
     onRoute: minDist < 2.0,

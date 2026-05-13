@@ -11,7 +11,7 @@ service cloud.firestore {
       ]);
       // Solo aggiornamenti specifici (no delete, no modifica campi sensibili)
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['confirmed','resolved','resolvedAt','soccorsi','note']);
+        .hasOnly(['confirmed','noCount','resolved','resolvedAt','soccorsi','note']);
       allow delete: if false;
     }
 
@@ -19,7 +19,7 @@ service cloud.firestore {
     match /tokens/{tokenId} {
       allow read:   if false;
       allow write:  if true;
-      allow delete: if false;
+      allow delete: if true;
     }
   }
 }

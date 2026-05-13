@@ -1,6 +1,6 @@
 import {
   collection, addDoc, getDocs, updateDoc, doc,
-  serverTimestamp, query, orderBy, where, Timestamp
+  serverTimestamp, query, orderBy, where, Timestamp, deleteDoc
 } from "firebase/firestore";
 import { db, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from "./firebase";
 
@@ -35,21 +35,19 @@ export async function fetchReports(callback) {
 }
 
 // ── Invia nuova segnalazione ─────────────────────────────────
-export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel, note, color, lat, lng }) {
-  // Salva su Firestore
+export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel, locInfo, note, color, lat, lng }) {
   const report = {
     emoji, label, dirProblema, corsia, km, kmLabel,
+    locInfo: locInfo || null,
     note: note || null, color,
     lat: lat || null,
     lng: lng || null,
-    confirmed: 0, resolved: false, resolvedAt: null,
+    confirmed: 0, noCount: 0, resolved: false, resolvedAt: null,
     soccorsi: false, createdAt: serverTimestamp(),
   };
   const docRef = await addDoc(collection(db, REPORTS_COL), report);
 
-  // Invia a Telegram passando i dati originali (non il report con serverTimestamp)
-  // per evitare problemi con oggetti non serializzabili
-  sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi: false, lat, lng })
+  sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, locInfo, note, soccorsi: false, lat, lng })
     .catch(e => console.warn("Telegram non raggiunto:", e.message));
 
   return docRef.id;
@@ -57,6 +55,16 @@ export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel
 
 export async function confirmReport(id, currentCount) {
   await updateDoc(doc(db, REPORTS_COL, id), { confirmed: currentCount + 1 });
+}
+
+export async function noreportReport(id, currentNoCount) {
+  const newCount = (currentNoCount || 0) + 1;
+  const updates = { noCount: newCount };
+  if (newCount >= 5) {
+    updates.resolved = true;
+    updates.resolvedAt = serverTimestamp();
+  }
+  await updateDoc(doc(db, REPORTS_COL, id), updates);
 }
 
 export async function resolveReport(id) {
@@ -78,8 +86,13 @@ export async function addNote(id, note) {
   await updateDoc(doc(db, REPORTS_COL, id), { note });
 }
 
+export async function deleteToken(token) {
+  try { await deleteDoc(doc(db, "tokens", token)); }
+  catch(e) { console.warn("deleteToken error:", e.message); }
+}
+
 // ── Invia messaggio Telegram ─────────────────────────────────
-async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi, lat, lng }) {
+async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, locInfo, note, soccorsi, lat, lng }) {
   if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("INSERISCI") ||
       !TELEGRAM_CHAT_ID   || TELEGRAM_CHAT_ID.includes("SOSTITUISCI")) return;
 
@@ -88,10 +101,11 @@ async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, 
   const dirProblemaLabel = dirProblema === "FI" ? "→ FIRENZE" : "→ SIENA";
 
   const text = [
-    `${emoji} *${label}* — Autopalio RA3`,
+    `${emoji} *${label}* — RA3 + Tangenziale`,
     ``,
     `🚨 Problema in direzione: *${dirProblemaLabel}*`,
     `📍 Posizione: *${kmLabel}* _(±300 m)_`,
+    locInfo  ? `📌 ${locInfo}` : null,
     note     ? `📝 ${note}` : null,
     soccorsi ? `🚑 Soccorsi già allertati — non richiamare il 112` : null,
     (lat && lng) ? `\n[📌 Apri su Maps](https://maps.google.com/?q=${lat},${lng})` : null,

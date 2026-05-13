@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
-  fetchReports, addReport, confirmReport,
+  fetchReports, addReport, confirmReport, noreportReport,
   resolveReport, reactivateReport, toggleSoccorsi, addNote, sendNoteToTelegram
 } from "./lib/db";
 import { useGPS } from "./hooks/useGPS";
@@ -56,12 +56,22 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("confirmedIds")||"[]"); }
     catch { return []; }
   });
+  const [noVotedIds, setNoVotedIds] = useState(()=>{
+    try { return JSON.parse(localStorage.getItem("noVotedIds")||"[]"); }
+    catch { return []; }
+  });
 
   function hasConfirmed(id){ return confirmedIds.includes(id); }
   function markConfirmed(id){
     const updated = [...confirmedIds, id];
     setConfirmedIds(updated);
     try { localStorage.setItem("confirmedIds", JSON.stringify(updated)); } catch{}
+  }
+  function hasNoVoted(id){ return noVotedIds.includes(id); }
+  function markNoVoted(id){
+    const updated = [...noVotedIds, id];
+    setNoVotedIds(updated);
+    try { localStorage.setItem("noVotedIds", JSON.stringify(updated)); } catch{}
   }
 
   // GPS
@@ -70,7 +80,7 @@ export default function App() {
   const [frozenPosition, setFrozenPosition] = useState(null);
 
   // Notifiche
-  const { permission, requestPermission, incomingAlert, setIncomingAlert } = useNotifications();
+  const { permission, notifEnabled, requestPermission, disableNotifications, incomingAlert, setIncomingAlert } = useNotifications();
 
   // UI state
   const [screen,setScreen]         = useState("home");
@@ -145,7 +155,8 @@ export default function App() {
         corsia,
         km:      activePos.km,
         kmLabel: activePos.kmLabel,
-        lat:     activePos.lat,   // coordinate reali per Maps e Telegram
+        locInfo: activePos.locInfo||null,
+        lat:     activePos.lat,
         lng:     activePos.lng,
         note: notaText||null,
         color: selAlert.color,
@@ -159,6 +170,18 @@ export default function App() {
     } finally {
       setSending(false);
     }
+  }
+
+  function handleNoreport(id, noCount){
+    if(hasNoVoted(id)||hasConfirmed(id)) return;
+    const newCount = (noCount||0) + 1;
+    setReports(p=>p.map(r=>r.id===id?{
+      ...r,
+      noCount: newCount,
+      ...(newCount>=5?{resolved:true,resolvedAt:{toDate:()=>new Date()}}:{})
+    }:r));
+    noreportReport(id, noCount).catch(console.error);
+    markNoVoted(id);
   }
 
   async function handleConfirmDup(dup){
@@ -229,7 +252,7 @@ export default function App() {
         backdropFilter:"blur(14px)",borderBottom:"2px solid #151820",
         padding:"12px 18px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:10,letterSpacing:5,color:"#444",textTransform:"uppercase"}}>SS2 CASSIA</div>
+          <div style={{fontSize:10,letterSpacing:5,color:"#444",textTransform:"uppercase"}}>RACCORDO AUTOSTRADALE 3</div>
           <div style={{fontSize:21,fontWeight:900,letterSpacing:1.5,lineHeight:1.1}}>
             SIENA <span style={{color:"#E53935"}}>↔</span> FIRENZE
           </div>
@@ -237,12 +260,12 @@ export default function App() {
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <button onClick={()=>setShowNotify(true)}
             style={{background:"transparent",border:"1px solid",
-              borderColor:permission==="granted"?"#E53935":"#1e2030",
+              borderColor:(permission==="granted"&&notifEnabled)?"#E53935":"#1e2030",
               borderRadius:8,padding:"5px 10px",cursor:"pointer",
-              color:permission==="granted"?"#E53935":"#444",
+              color:(permission==="granted"&&notifEnabled)?"#E53935":"#444",
               fontSize:10,fontWeight:800,letterSpacing:1.5,lineHeight:1,
-              boxShadow:permission==="granted"?"0 0 10px rgba(229,57,53,0.3)":"none"}}>
-            {permission==="granted"?"NOT. ON":"NOT. OFF"}
+              boxShadow:(permission==="granted"&&notifEnabled)?"0 0 10px rgba(229,57,53,0.3)":"none"}}>
+            {(permission==="granted"&&notifEnabled)?"NOTIF. ON":"NOTIF. OFF"}
           </button>
           {activeReports.length>0&&
             <div style={{background:"#E53935",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:800}}>
@@ -281,11 +304,17 @@ export default function App() {
 
               <DirStrip label="→ FIRENZE" reports={repFI} sev={sevFI}
                 expanded={expandDir==="FI"} onToggle={()=>setExpandDir(e=>e==="FI"?null:"FI")}
-                onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
+                onConfirm={(id,n)=>handleConfirm(id,n)}
+                onNoreport={(id,n)=>handleNoreport(id,n)}
+                hasConfirmed={hasConfirmed} hasNoVoted={hasNoVoted}
+                onMap={setMapReport}/>
 
               <DirStrip label="→ SIENA" reports={repSI} sev={sevSI}
                 expanded={expandDir==="SI"} onToggle={()=>setExpandDir(e=>e==="SI"?null:"SI")}
-                onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
+                onConfirm={(id,n)=>handleConfirm(id,n)}
+                onNoreport={(id,n)=>handleNoreport(id,n)}
+                hasConfirmed={hasConfirmed} hasNoVoted={hasNoVoted}
+                onMap={setMapReport}/>
             </div>
 
             {/* BOTTOM: GPS + pulsante segnala */}
@@ -392,6 +421,7 @@ export default function App() {
                   </div>
                   <div style={{fontSize:12,color:"#555"}}>
                     {activePos?`${activePos.kmLabel} · ${dirLabel(dirProblema)}`:"Rilevamento in corso..."}
+                    {activePos?.locInfo&&<div style={{marginTop:2,color:"#444",fontSize:11}}>{activePos.locInfo}</div>}
                   </div>
                 </div>
               </div>
@@ -421,7 +451,7 @@ export default function App() {
                   </div>
                 </div>
                 <IR icon="🧭" label="Direzione"  value={dirLabel(dirProblema)}/>
-                <IR icon="📍" label="Posizione"  value={activePos?`${activePos.kmLabel} (registrata al tap)`:"..."}/>
+                <IR icon="📍" label="Posizione"  value={activePos?`${activePos.kmLabel}${activePos.locInfo?` · ${activePos.locInfo}`:""} (registrata al tap)`:"..."}/>
                 <IR icon="⚠️" label="Precisione" value="Chilometraggio approssimativo ±300 m"/>
                 <IR icon="📣" label="Telegram"   value="Pin + messaggio al gruppo"/>
                 <IR icon="NOT" label="Push"        value="Notifica a tutti gli utenti"/>
@@ -449,14 +479,10 @@ export default function App() {
             <div style={{fontSize:70,marginBottom:18,animation:"pop 0.4s ease"}}>✅</div>
             <div style={{fontSize:26,fontWeight:900,marginBottom:8}}>Segnalazione inviata!</div>
             <div style={{fontSize:14,color:"#666",lineHeight:1.9}}>
-              📍 {activePos?.kmLabel} SS2 registrato<br/>
+              📍 {activePos?.kmLabel}{activePos?.locInfo?` · ${activePos.locInfo}`:""} RA3 registrato<br/>
               📣 Gruppo Telegram avvisato<br/>
               🔔 Notifica push inviata
             </div>
-            <style>{`
-              @keyframes pop{0%{transform:scale(0.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
-              @keyframes slideDown{0%{transform:translateX(-50%) translateY(-110%);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
-            `}</style>
           </div>
         )}
 
@@ -520,6 +546,10 @@ export default function App() {
       }}>
         🔒 NESSUN DATO PERSONALE · GPS SOLO IN SEGNALAZIONE
       </div>
+      <style>{`
+        @keyframes pop{0%{transform:scale(0.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+        @keyframes slideDown{0%{transform:translateX(-50%) translateY(-110%);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
+      `}</style>
 
       {/* ── MODAL: Notifiche ── */}
       {showNotify&&(
@@ -537,7 +567,26 @@ export default function App() {
               Ricevi una notifica ogni volta che viene segnalato un imprevisto sulla SS2.
             </div>
             {permission==="granted"
-              ?<div style={{fontSize:13,color:"#66bb6a",fontWeight:700}}>✅ Notifiche attive</div>
+              ? notifEnabled
+                ? <div>
+                    <div style={{fontSize:13,color:"#66bb6a",fontWeight:700,marginBottom:10}}>✅ Notifiche attive</div>
+                    <button onClick={()=>disableNotifications()}
+                      style={{width:"100%",padding:"12px",borderRadius:10,
+                        border:"1px solid #E5393544",
+                        background:"rgba(229,57,53,0.08)",color:"#E53935",
+                        fontSize:14,fontWeight:800,cursor:"pointer"}}>
+                      DISABILITA NOTIFICHE
+                    </button>
+                  </div>
+                : <div>
+                    <div style={{fontSize:13,color:"#555",fontWeight:700,marginBottom:10}}>Notifiche disabilitate</div>
+                    <button onClick={()=>{requestPermission();setShowNotify(false);}}
+                      style={{width:"100%",padding:"12px",borderRadius:10,border:"none",
+                        background:"linear-gradient(135deg,#E53935,#b71c1c)",color:"#fff",
+                        fontSize:14,fontWeight:800,cursor:"pointer"}}>
+                      RIABILITA NOTIFICHE
+                    </button>
+                  </div>
               :<button onClick={()=>{requestPermission();setShowNotify(false);}}
                 style={{width:"100%",padding:"12px",borderRadius:10,border:"none",
                   background:"linear-gradient(135deg,#E53935,#b71c1c)",color:"#fff",
@@ -651,7 +700,7 @@ export default function App() {
 }
 
 // ── DirStrip ──────────────────────────────────────────────────
-function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
+function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onNoreport,hasConfirmed,hasNoVoted,onMap}){
   const ok=reports.length===0;
   return(
     <div style={{borderRadius:14,marginBottom:10,overflow:"hidden",
@@ -713,7 +762,7 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
             background:"rgba(67,160,71,0.08)",border:"1px solid rgba(67,160,71,0.18)",
             fontSize:10,color:"#4a9a5a",letterSpacing:2,fontWeight:800,textAlign:"center",
           }}>
-            CONFERMI? PREMI IL NUMERO VERDE
+            CONFERMI QUESTA SEGNALAZIONE?
           </div>
           {reports.map(r=>(
             <div key={r.id} style={{display:"flex",alignItems:"center",gap:10,
@@ -728,16 +777,37 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
                   <span style={{fontSize:14,fontWeight:800,color:r.color,letterSpacing:1}}>{r.label}</span>
                   {r.soccorsi&&<span style={{fontSize:10,color:"#66bb6a",background:"rgba(67,160,71,0.15)",padding:"1px 7px",borderRadius:10,fontWeight:700}}>soccorsi allertati</span>}
                 </div>
-                <div style={{fontSize:11,color:"#666",marginTop:2}}>{r.kmLabel} · {r.loc||""}</div>
+                <div style={{fontSize:11,color:"#666",marginTop:2}}>
+                  {r.kmLabel}{r.locInfo?` · ${r.locInfo}`:r.loc?` · ${r.loc}`:""}
+                </div>
                 {r.note&&<div style={{fontSize:11,color:"#888",marginTop:3,fontStyle:"italic"}}>"{r.note}"</div>}
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0}}>
-                <button onClick={()=>onConfirm(r.id,r.confirmed)}
-                  style={{padding:"5px 14px",borderRadius:7,border:"1px solid #2e7d3244",
-                    background:"rgba(67,160,71,0.15)",color:"#66bb6a",
-                    fontSize:14,fontWeight:900,cursor:"pointer"}}>
-                  {r.confirmed}
-                </button>
+                <div style={{display:"flex",gap:4}}>
+                  <button
+                    disabled={hasConfirmed(r.id)||hasNoVoted(r.id)}
+                    onClick={()=>onConfirm(r.id,r.confirmed)}
+                    style={{padding:"5px 9px",borderRadius:7,
+                      border:`1px solid ${hasConfirmed(r.id)?"#2e7d3244":"#2e7d3266"}`,
+                      background:hasConfirmed(r.id)?"rgba(67,160,71,0.25)":"rgba(67,160,71,0.15)",
+                      color:hasConfirmed(r.id)?"#66bb6a":"#66bb6a",
+                      fontSize:11,fontWeight:900,
+                      cursor:hasConfirmed(r.id)||hasNoVoted(r.id)?"default":"pointer",
+                      letterSpacing:1,opacity:hasNoVoted(r.id)?0.3:1}}>
+                    SI
+                  </button>
+                  <button
+                    disabled={hasNoVoted(r.id)||hasConfirmed(r.id)}
+                    onClick={()=>onNoreport(r.id,r.noCount||0)}
+                    style={{padding:"5px 9px",borderRadius:7,
+                      border:`1px solid ${hasNoVoted(r.id)?"#E5393566":"#E5393544"}`,
+                      background:hasNoVoted(r.id)?"rgba(229,57,53,0.2)":"rgba(229,57,53,0.1)",
+                      color:"#E53935",fontSize:11,fontWeight:900,
+                      cursor:hasNoVoted(r.id)||hasConfirmed(r.id)?"default":"pointer",
+                      letterSpacing:1,opacity:hasConfirmed(r.id)?0.3:1}}>
+                    NO
+                  </button>
+                </div>
                 <button onClick={()=>onMap(r)}
                   style={{padding:"4px 8px",borderRadius:7,border:"1px solid #1e3a5f",
                     background:"rgba(2,88,161,0.12)",color:"#42a5f5",
@@ -835,8 +905,7 @@ function Toggle({on,onChange}){return(
       borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.4)"}}/>
   </div>
 );}
-const T   =({c})=><div style={{fontSize:12,color:"#555",letterSpacing:4,textTransform:"uppercase",marginBottom:12}}>{c}</div>;
-const T2  =({children})=><div style={{fontSize:12,color:"#555",letterSpacing:4,textTransform:"uppercase",marginBottom:12}}>{children}</div>;
+const T   =({children})=><div style={{fontSize:12,color:"#555",letterSpacing:4,textTransform:"uppercase",marginBottom:12}}>{children}</div>;
 const Sub =({children})=><div style={{fontSize:13,color:"#555",lineHeight:1.6,marginBottom:4}}>{children}</div>;
 const Back=({onClick})=><button onClick={onClick} style={{background:"transparent",border:"none",color:"#555",fontSize:13,cursor:"pointer",marginBottom:16,letterSpacing:1,padding:0}}>← Indietro</button>;
 const Btn =({onClick,children})=>(
