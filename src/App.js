@@ -743,7 +743,6 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
   );
 }
 
-}
 
 // ── ReportCard ────────────────────────────────────────────────
 function ReportCard({r,onConfirm,alreadyConfirmed,onResolve,onMap,onAddNote,onToggleSoccorsi}){
