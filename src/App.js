@@ -238,10 +238,11 @@ export default function App() {
           <button onClick={()=>setShowNotify(true)}
             style={{background:"transparent",border:"1px solid",
               borderColor:permission==="granted"?"#E53935":"#1e2030",
-              borderRadius:8,padding:"5px 9px",cursor:"pointer",
-              color:permission==="granted"?"#E53935":"#444",fontSize:16,lineHeight:1,
+              borderRadius:8,padding:"5px 10px",cursor:"pointer",
+              color:permission==="granted"?"#E53935":"#444",
+              fontSize:10,fontWeight:800,letterSpacing:1.5,lineHeight:1,
               boxShadow:permission==="granted"?"0 0 10px rgba(229,57,53,0.3)":"none"}}>
-            {permission==="granted"?"NOT":"---"}
+            {permission==="granted"?"NOT. ON":"NOT. OFF"}
           </button>
           {activeReports.length>0&&
             <div style={{background:"#E53935",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:800}}>
@@ -264,54 +265,61 @@ export default function App() {
         ))}
       </div>
 
-      <div style={{flex:1,padding:"18px 14px",position:"relative",zIndex:2,overflowY:"auto",minHeight:0}}>
+      <div style={{flex:1,padding:"18px 14px",position:"relative",zIndex:2,
+        overflow:screen==="home"?"hidden":"auto",minHeight:0,display:"flex",flexDirection:"column"}}>
 
         {/* ══ HOME ══ */}
         {screen==="home"&&(
-          <div>
-            <div style={{fontSize:11,color:"#444",letterSpacing:4,textTransform:"uppercase",marginBottom:10}}>
-              Situazione ora
+          <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
+
+            {/* TOP: segnalazioni */}
+            <div style={{flex:1,overflowY:"auto",minHeight:0,paddingBottom:8}}>
+              <div style={{
+                fontSize:11,color:"#555",letterSpacing:4,
+                textTransform:"uppercase",marginBottom:14,marginTop:2,
+              }}>Segnalazioni</div>
+
+              <DirStrip label="→ FIRENZE" reports={repFI} sev={sevFI}
+                expanded={expandDir==="FI"} onToggle={()=>setExpandDir(e=>e==="FI"?null:"FI")}
+                onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
+
+              <DirStrip label="→ SIENA" reports={repSI} sev={sevSI}
+                expanded={expandDir==="SI"} onToggle={()=>setExpandDir(e=>e==="SI"?null:"SI")}
+                onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
             </div>
 
-            <DirStrip label="→ FIRENZE" reports={repFI} sev={sevFI}
-              expanded={expandDir==="FI"} onToggle={()=>setExpandDir(e=>e==="FI"?null:"FI")}
-              onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
+            {/* BOTTOM: GPS + pulsante segnala */}
+            <div style={{
+              flexShrink:0,paddingTop:18,paddingBottom:4,
+              borderTop:"1px solid #1a1a22",
+            }}>
+              <div style={{
+                display:"flex",alignItems:"center",gap:8,marginBottom:14,
+                padding:"7px 12px",borderRadius:20,
+                background:"rgba(255,255,255,0.03)",border:"1px solid #1a1a22",
+                width:"fit-content",
+              }}>
+                <div style={{
+                  width:6,height:6,borderRadius:"50%",
+                  background:gpsLoading?"#FB8C00":position?"#43A047":"#E53935",
+                  boxShadow:position?"0 0 8px #43A047":"none",transition:"all 0.5s",
+                }}/>
+                <span style={{fontSize:11,color:"#555",letterSpacing:1}}>
+                  {gpsLoading?"GPS in rilevamento..."
+                    :position?`${position.kmLabel} · rilevata`
+                    :"GPS non disponibile"}
+                </span>
+              </div>
 
-            <DirStrip label="→ SIENA" reports={repSI} sev={sevSI}
-              expanded={expandDir==="SI"} onToggle={()=>setExpandDir(e=>e==="SI"?null:"SI")}
-              onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
-
-            <div style={{height:1,background:"#151820",margin:"22px 0"}}/>
-
-            <div style={{fontSize:11,color:"#444",letterSpacing:4,textTransform:"uppercase",marginBottom:12}}>
-              Segnala imprevisto
+              <BigBtn onClick={async()=>{
+                try {
+                  const snap = await snapshotNow();
+                  setFrozenPosition(snap);
+                } catch(e){ setFrozenPosition(position); }
+                setScreen("flow"); setStep(0);
+              }}>SEGNALA ORA</BigBtn>
             </div>
-    <BigBtn onClick={async ()=>{
-      // ── SNAPSHOT GPS AL TAP ──────────────────────────────
-      // Congela la posizione in questo preciso momento, prima
-      // che l'utente compili il form (possono passare 10-30 sec)
-      try {
-        const snap = await snapshotNow();
-        setFrozenPosition(snap);
-      } catch(e) {
-        setFrozenPosition(position); // fallback alla posizione watch
-      }
-      setScreen("flow"); setStep(0);
-    }}>🚨 SEGNALA ORA</BigBtn>
 
-            {/* GPS status */}
-            <div style={{display:"flex",alignItems:"center",gap:8,marginTop:14,
-              padding:"8px 14px",borderRadius:30,background:"rgba(255,255,255,0.03)",
-              border:"1px solid #1a1a22",width:"fit-content"}}>
-              <div style={{width:6,height:6,borderRadius:"50%",
-                background:gpsLoading?"#FB8C00":position?"#43A047":"#E53935",
-                boxShadow:position?`0 0 8px #43A047`:"none",transition:"all 0.5s"}}/>
-              <span style={{fontSize:11,color:"#555",letterSpacing:1}}>
-                {gpsLoading?"GPS in rilevamento..."
-                  :position?`${position.kmLabel} SS2 · rilevata`
-                  :"GPS non disponibile"}
-              </span>
-            </div>
           </div>
         )}
 
@@ -743,6 +751,7 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
   );
 }
 
+}
 
 // ── ReportCard ────────────────────────────────────────────────
 function ReportCard({r,onConfirm,alreadyConfirmed,onResolve,onMap,onAddNote,onToggleSoccorsi}){
