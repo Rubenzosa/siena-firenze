@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
-  fetchReports, addReport, confirmReport, noreportReport,
+  subscribeReports, addReport, confirmReport, noreportReport,
   resolveReport, reactivateReport, toggleSoccorsi, addNote, sendNoteToTelegram
 } from "./lib/db";
 import { useGPS } from "./hooks/useGPS";
@@ -43,19 +43,11 @@ export default function App() {
   // Auth anonima
   useEffect(()=>{ signInAnonymously(auth).catch(console.error); },[]);
 
-  // Dati Firestore — polling ogni 30s + re-fetch immediato al ritorno in foreground
+  // Dati Firestore — listener real-time (onSnapshot), aggiornamento istantaneo
   const [reports, setReports] = useState([]);
   useEffect(()=>{
-    let interval;
-    const start = () => {
-      fetchReports(setReports);
-      clearInterval(interval);
-      interval = setInterval(()=>fetchReports(setReports), 30000);
-    };
-    start();
-    const onVisible = ()=>{ if(document.visibilityState==="visible") start(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return ()=>{ clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
+    const unsub = subscribeReports(setReports);
+    return unsub;
   },[]);
 
   // IDs segnalazioni già confermate da questo dispositivo (anti-spam)
