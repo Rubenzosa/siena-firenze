@@ -254,7 +254,14 @@ export default function App() {
         <div>
           <div style={{fontSize:10,letterSpacing:5,color:"#444",textTransform:"uppercase"}}>RACCORDO AUTOSTRADALE 3</div>
           <div style={{fontSize:21,fontWeight:900,letterSpacing:1.5,lineHeight:1.1}}>
-            SIENA <span style={{color:"#E53935"}}>↔</span> FIRENZE
+            SIENA{" "}
+            <span style={{display:"inline-flex",gap:1}}>
+              <span style={{color:"#E53935",display:"inline-block",
+                animation:"arrowLeft 1.6s cubic-bezier(0.4,0,0.2,1) 0.5s 1 none"}}>←</span>
+              <span style={{color:"#E53935",display:"inline-block",
+                animation:"arrowRight 1.6s cubic-bezier(0.4,0,0.2,1) 0.5s 1 none"}}>→</span>
+            </span>
+            {" "}FIRENZE
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -549,6 +556,8 @@ export default function App() {
       <style>{`
         @keyframes pop{0%{transform:scale(0.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
         @keyframes slideDown{0%{transform:translateX(-50%) translateY(-110%);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
+        @keyframes arrowLeft{0%,100%{transform:translateX(0)}40%,60%{transform:translateX(-11px)}}
+        @keyframes arrowRight{0%,100%{transform:translateX(0)}40%,60%{transform:translateX(11px)}}
       `}</style>
 
       {/* ── MODAL: Notifiche ── */}
