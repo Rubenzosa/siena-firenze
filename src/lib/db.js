@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, onSnapshot, updateDoc, doc,
+  collection, addDoc, getDocs, updateDoc, doc,
   serverTimestamp, query, orderBy, where, Timestamp
 } from "firebase/firestore";
 import { db, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from "./firebase";
@@ -7,16 +7,17 @@ import { db, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from "./firebase";
 const REPORTS_COL      = "reports";
 const RESOLVED_HIDE_MS = 60 * 60 * 1000; // 1 ora
 
-// ── Ascolta segnalazioni in tempo reale ──────────────────────
-export function subscribeReports(callback) {
-  const cutoff = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-  const q = query(
-    collection(db, REPORTS_COL),
-    where("createdAt", ">", cutoff),
-    orderBy("createdAt", "desc")
-  );
-  return onSnapshot(q, snap => {
-    const now = Date.now();
+// ── Fetch segnalazioni (polling ogni 30s — ottimizza letture) ──
+export async function fetchReports(callback) {
+  try {
+    const cutoff = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const q = query(
+      collection(db, REPORTS_COL),
+      where("createdAt", ">", cutoff),
+      orderBy("createdAt", "desc")
+    );
+    const snap = await getDocs(q);
+    const now  = Date.now();
     const data = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(r => {
@@ -28,7 +29,9 @@ export function subscribeReports(callback) {
         return (now - resolvedMs) < RESOLVED_HIDE_MS;
       });
     callback(data);
-  });
+  } catch(e) {
+    console.warn("fetchReports error:", e.message);
+  }
 }
 
 // ── Invia nuova segnalazione ─────────────────────────────────

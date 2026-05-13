@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
-  subscribeReports, addReport, confirmReport,
+  fetchReports, addReport, confirmReport,
   resolveReport, reactivateReport, toggleSoccorsi, addNote
 } from "./lib/db";
 import { useGPS } from "./hooks/useGPS";
@@ -43,12 +43,26 @@ export default function App() {
   // Auth anonima
   useEffect(()=>{ signInAnonymously(auth).catch(console.error); },[]);
 
-  // Dati live da Firestore
+  // Dati Firestore — polling ogni 30 secondi (ottimizza letture)
   const [reports, setReports] = useState([]);
   useEffect(()=>{
-    const unsub = subscribeReports(setReports);
-    return unsub;
+    fetchReports(setReports); // caricamento immediato
+    const interval = setInterval(()=>fetchReports(setReports), 30000);
+    return ()=>clearInterval(interval);
   },[]);
+
+  // IDs segnalazioni già confermate da questo dispositivo (anti-spam)
+  const [confirmedIds, setConfirmedIds] = useState(()=>{
+    try { return JSON.parse(localStorage.getItem("confirmedIds")||"[]"); }
+    catch { return []; }
+  });
+
+  function hasConfirmed(id){ return confirmedIds.includes(id); }
+  function markConfirmed(id){
+    const updated = [...confirmedIds, id];
+    setConfirmedIds(updated);
+    try { localStorage.setItem("confirmedIds", JSON.stringify(updated)); } catch{}
+  }
 
   // GPS
   const { position, loading: gpsLoading, snapshotNow } = useGPS();
@@ -111,6 +125,17 @@ export default function App() {
 
   async function handleSend(){
     if(!activePos){ alert("GPS non disponibile. Attendi la posizione."); return; }
+    // Anti-spam: max 1 segnalazione ogni 5 minuti per dispositivo
+    try {
+      const lastSent = parseInt(localStorage.getItem("lastSentAt")||"0");
+      const elapsed  = Date.now() - lastSent;
+      const LIMIT_MS = 5 * 60 * 1000;
+      if(elapsed < LIMIT_MS){
+        const remaining = Math.ceil((LIMIT_MS - elapsed) / 60000);
+        alert(`Hai già segnalato di recente. Attendi ancora ${remaining} minuto${remaining>1?"i":""}.`);
+        return;
+      }
+    } catch{}
     setSending(true);
     try {
       await addReport({
@@ -125,6 +150,7 @@ export default function App() {
         note: notaText||null,
         color: selAlert.color,
       });
+      try { localStorage.setItem("lastSentAt", Date.now().toString()); } catch{}
       setScreen("sent");
       setTimeout(goHome, 2600);
     } catch(e){
@@ -220,11 +246,13 @@ export default function App() {
 
             <DirStrip label="→ FIRENZE" reports={repFI} sev={sevFI}
               expanded={expandDir==="FI"} onToggle={()=>setExpandDir(e=>e==="FI"?null:"FI")}
-              onConfirm={(id,n)=>confirmReport(id,n)} onMap={setMapReport}/>
+              onConfirm={(id,n)=>{ if(hasConfirmed(id)) return; confirmReport(id,n); markConfirmed(id); }}
+              onMap={setMapReport}/>
 
             <DirStrip label="→ SIENA" reports={repSI} sev={sevSI}
               expanded={expandDir==="SI"} onToggle={()=>setExpandDir(e=>e==="SI"?null:"SI")}
-              onConfirm={(id,n)=>confirmReport(id,n)} onMap={setMapReport}/>
+              onConfirm={(id,n)=>{ if(hasConfirmed(id)) return; confirmReport(id,n); markConfirmed(id); }}
+              onMap={setMapReport}/>
 
             <div style={{height:1,background:"#151820",margin:"22px 0"}}/>
 
@@ -407,7 +435,8 @@ export default function App() {
               <T>Segnalazioni attive</T>
               {activeReports.map(r=>(
                 <ReportCard key={r.id} r={r}
-                  onConfirm={()=>confirmReport(r.id, r.confirmed)}
+                  onConfirm={()=>{ if(hasConfirmed(r.id)) return; confirmReport(r.id, r.confirmed); markConfirmed(r.id); }}
+                  alreadyConfirmed={hasConfirmed(r.id)}
                   onResolve={()=>setResolveId(r.id)}
                   onMap={()=>setMapReport(r)}
                   onAddNote={()=>setAddNoteId(r.id)}
@@ -675,7 +704,7 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
 }
 
 // ── ReportCard ────────────────────────────────────────────────
-function ReportCard({r,onConfirm,onResolve,onMap,onAddNote,onToggleSoccorsi}){
+function ReportCard({r,onConfirm,alreadyConfirmed,onResolve,onMap,onAddNote,onToggleSoccorsi}){
   const b=badge(r.confirmed);
   return(
     <div style={{borderRadius:16,padding:"16px",marginBottom:14,
@@ -723,11 +752,14 @@ function ReportCard({r,onConfirm,onResolve,onMap,onAddNote,onToggleSoccorsi}){
         🗺️ VEDI SU MAPPA
       </button>
       <div style={{display:"flex",gap:7}}>
-        <button onClick={onConfirm}
-          style={{flex:1,padding:"9px 0",borderRadius:8,border:"1px solid #2e7d3244",
-            background:"rgba(67,160,71,0.1)",color:"#66bb6a",
-            fontSize:12,fontWeight:800,cursor:"pointer",letterSpacing:1}}>
-          👍 CONFERMO ({r.confirmed})
+        <button onClick={alreadyConfirmed?undefined:onConfirm} disabled={alreadyConfirmed}
+          style={{flex:1,padding:"9px 0",borderRadius:8,border:"1px solid",
+            borderColor:alreadyConfirmed?"#1e2030":"#2e7d3244",
+            background:alreadyConfirmed?"rgba(255,255,255,0.03)":"rgba(67,160,71,0.1)",
+            color:alreadyConfirmed?"#333":"#66bb6a",
+            fontSize:12,fontWeight:800,
+            cursor:alreadyConfirmed?"not-allowed":"pointer",letterSpacing:1}}>
+          {alreadyConfirmed?"✓ CONFERMATO":"👍 CONFERMO"} ({r.confirmed})
         </button>
         <button onClick={onAddNote}
           style={{flex:1,padding:"9px 0",borderRadius:8,border:"1px solid #37474f",
