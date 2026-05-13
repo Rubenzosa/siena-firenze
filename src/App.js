@@ -139,7 +139,7 @@ export default function App() {
     try {
       const lastSent = parseInt(localStorage.getItem("lastSentAt")||"0");
       const elapsed  = Date.now() - lastSent;
-      const LIMIT_MS = 5 * 60 * 1000;
+      const LIMIT_MS = 2 * 60 * 1000;
       if(elapsed < LIMIT_MS){
         const remaining = Math.ceil((LIMIT_MS - elapsed) / 60000);
         alert(`Hai già segnalato di recente. Attendi ancora ${remaining} minuto${remaining>1?"i":""}.`);
