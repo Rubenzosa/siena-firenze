@@ -358,6 +358,7 @@ export default function App() {
                 </div>
                 <IR icon="🧭" label="Direzione"  value={dirLabel(dirProblema)}/>
                 <IR icon="📍" label="Posizione"  value={activePos?`${activePos.kmLabel} (registrata al tap)`:"..."}/>
+                <IR icon="⚠️" label="Precisione" value="Chilometraggio approssimativo ±300 m"/>
                 <IR icon="📣" label="Telegram"   value="Pin + messaggio al gruppo"/>
                 <IR icon="🔔" label="Push"        value="Notifica a tutti gli utenti"/>
                 {notaText&&<IR icon="📝" label="Nota" value={notaText}/>}
