@@ -33,6 +33,7 @@ export function subscribeReports(callback) {
 
 // ── Invia nuova segnalazione ─────────────────────────────────
 export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel, note, color, lat, lng }) {
+  // Salva su Firestore
   const report = {
     emoji, label, dirProblema, corsia, km, kmLabel,
     note: note || null, color,
@@ -42,9 +43,12 @@ export async function addReport({ emoji, label, dirProblema, corsia, km, kmLabel
     soccorsi: false, createdAt: serverTimestamp(),
   };
   const docRef = await addDoc(collection(db, REPORTS_COL), report);
-  sendTelegram({ ...report, id: docRef.id }).catch(e =>
-    console.warn("Telegram non raggiunto:", e.message)
-  );
+
+  // Invia a Telegram passando i dati originali (non il report con serverTimestamp)
+  // per evitare problemi con oggetti non serializzabili
+  sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi: false, lat, lng })
+    .catch(e => console.warn("Telegram non raggiunto:", e.message));
+
   return docRef.id;
 }
 
@@ -71,6 +75,7 @@ export async function addNote(id, note) {
   await updateDoc(doc(db, REPORTS_COL, id), { note });
 }
 
+// ── Invia messaggio Telegram ─────────────────────────────────
 async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, soccorsi, lat, lng }) {
   if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("INSERISCI") ||
       !TELEGRAM_CHAT_ID   || TELEGRAM_CHAT_ID.includes("SOSTITUISCI")) return;
@@ -86,29 +91,43 @@ async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, 
     `🛣 ${corsiaT}`,
     note     ? `📝 ${note}` : null,
     soccorsi ? `🚑 Soccorsi già allertati — non chiamare il 112` : null,
-    lat && lng ? `\n[📌 Apri posizione su Maps](https://maps.google.com/?q=${lat},${lng})` : null,
+    (lat && lng) ? `\n[📌 Apri posizione su Maps](https://maps.google.com/?q=${lat},${lng})` : null,
     ``,
     `_Segnalazione via app Siena↔Firenze_`,
   ].filter(Boolean).join("\n");
 
-  const msgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: TELEGRAM_CHAT_ID,
-      text,
-      parse_mode: "Markdown",
-      disable_web_page_preview: false,
-    }),
-  });
-  const msgData = await msgRes.json();
-  if (!msgData.ok) { console.warn("Telegram error:", msgData.description); return; }
-
-  if (lat && lng) {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendLocation`, {
+  const msgRes = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, latitude: lat, longitude: lng }),
-    });
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text,
+        parse_mode: "Markdown",
+        disable_web_page_preview: false,
+      }),
+    }
+  );
+  const msgData = await msgRes.json();
+  if (!msgData.ok) {
+    console.warn("Telegram sendMessage error:", msgData.description);
+    return;
+  }
+
+  // Pin posizione nativo solo se abbiamo coordinate reali
+  if (lat && lng) {
+    await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendLocation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          latitude: lat,
+          longitude: lng,
+        }),
+      }
+    );
   }
 }
