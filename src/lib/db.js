@@ -134,3 +134,29 @@ async function sendTelegram({ emoji, label, dirProblema, corsia, kmLabel, note, 
     );
   }
 }
+
+// ── Notifica Telegram per aggiornamento nota ─────────────────
+export async function sendNoteToTelegram(id, note) {
+  if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("INSERISCI") ||
+      !TELEGRAM_CHAT_ID   || TELEGRAM_CHAT_ID.includes("SOSTITUISCI")) return;
+  try {
+    const text = [
+      `📝 *Aggiornamento segnalazione*`,
+      ``,
+      `"${note}"`,
+      ``,
+      `_via app Siena↔Firenze_`,
+    ].join("\n");
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text,
+        parse_mode: "Markdown",
+      }),
+    });
+  } catch(e) {
+    console.warn("sendNoteToTelegram error:", e.message);
+  }
+}

@@ -3,7 +3,7 @@ import { signInAnonymously } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
   fetchReports, addReport, confirmReport,
-  resolveReport, reactivateReport, toggleSoccorsi, addNote
+  resolveReport, reactivateReport, toggleSoccorsi, addNote, sendNoteToTelegram
 } from "./lib/db";
 import { useGPS } from "./hooks/useGPS";
 import { useNotifications } from "./hooks/useNotifications";
@@ -162,8 +162,37 @@ export default function App() {
   }
 
   async function handleConfirmDup(dup){
-    await confirmReport(dup.id, dup.confirmed);
+    setReports(p=>p.map(r=>r.id===dup.id?{...r,confirmed:r.confirmed+1}:r));
+    confirmReport(dup.id, dup.confirmed).catch(console.error);
+    markConfirmed(dup.id);
     setDupModal(null); setScreen("sent"); setTimeout(goHome,2400);
+  }
+
+  // Azioni ottimistiche: aggiornano UI subito, poi sincronizzano Firestore
+  function handleConfirm(id, confirmed){
+    if(hasConfirmed(id)) return;
+    setReports(p=>p.map(r=>r.id===id?{...r,confirmed:r.confirmed+1}:r));
+    confirmReport(id, confirmed).catch(console.error);
+    markConfirmed(id);
+  }
+  function handleResolve(id){
+    setReports(p=>p.map(r=>r.id===id?{...r,resolved:true,resolvedAt:{toDate:()=>new Date()}}:r));
+    resolveReport(id).catch(console.error);
+    setResolveId(null);
+  }
+  function handleReactivate(id){
+    setReports(p=>p.map(r=>r.id===id?{...r,resolved:false,resolvedAt:null}:r));
+    reactivateReport(id).catch(console.error);
+  }
+  function handleToggleSoccorsi(id, current){
+    setReports(p=>p.map(r=>r.id===id?{...r,soccorsi:!current}:r));
+    toggleSoccorsi(id, current).catch(console.error);
+  }
+  async function handleAddNote(id, note){
+    setReports(p=>p.map(r=>r.id===id?{...r,note}:r));
+    await addNote(id, note);
+    await sendNoteToTelegram(id, note);
+    setAddNoteId(null); setAddNoteText("");
   }
 
   return(
@@ -212,7 +241,7 @@ export default function App() {
               borderRadius:8,padding:"5px 9px",cursor:"pointer",
               color:permission==="granted"?"#E53935":"#444",fontSize:16,lineHeight:1,
               boxShadow:permission==="granted"?"0 0 10px rgba(229,57,53,0.3)":"none"}}>
-            {permission==="granted"?"🔔":"🔕"}
+            {permission==="granted"?"NOT":"---"}
           </button>
           {activeReports.length>0&&
             <div style={{background:"#E53935",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:800}}>
@@ -225,7 +254,7 @@ export default function App() {
 
       {/* TABS */}
       <div style={{display:"flex",zIndex:5,borderBottom:"1px solid #151820"}}>
-        {[["home","🏠 Home"],["feed",`📋 Live (${activeReports.length})`]].map(([s,label])=>(
+        {[["home","Home"],["feed",`Live (${activeReports.length})`]].map(([s,label])=>(
           <button key={s} onClick={()=>{setScreen(s);reset();}}
             style={{flex:1,padding:"11px 0",background:"transparent",border:"none",
               color:(screen===s||(["flow","sent"].includes(screen)&&s==="home"))?"#fff":"#444",
@@ -246,13 +275,11 @@ export default function App() {
 
             <DirStrip label="→ FIRENZE" reports={repFI} sev={sevFI}
               expanded={expandDir==="FI"} onToggle={()=>setExpandDir(e=>e==="FI"?null:"FI")}
-              onConfirm={(id,n)=>{ if(hasConfirmed(id)) return; confirmReport(id,n); markConfirmed(id); }}
-              onMap={setMapReport}/>
+              onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
 
             <DirStrip label="→ SIENA" reports={repSI} sev={sevSI}
               expanded={expandDir==="SI"} onToggle={()=>setExpandDir(e=>e==="SI"?null:"SI")}
-              onConfirm={(id,n)=>{ if(hasConfirmed(id)) return; confirmReport(id,n); markConfirmed(id); }}
-              onMap={setMapReport}/>
+              onConfirm={(id,n)=>handleConfirm(id,n)} onMap={setMapReport}/>
 
             <div style={{height:1,background:"#151820",margin:"22px 0"}}/>
 
@@ -389,7 +416,7 @@ export default function App() {
                 <IR icon="📍" label="Posizione"  value={activePos?`${activePos.kmLabel} (registrata al tap)`:"..."}/>
                 <IR icon="⚠️" label="Precisione" value="Chilometraggio approssimativo ±300 m"/>
                 <IR icon="📣" label="Telegram"   value="Pin + messaggio al gruppo"/>
-                <IR icon="🔔" label="Push"        value="Notifica a tutti gli utenti"/>
+                <IR icon="NOT" label="Push"        value="Notifica a tutti gli utenti"/>
                 {notaText&&<IR icon="📝" label="Nota" value={notaText}/>}
               </div>
               <button onClick={handleSend} disabled={sending||!activePos}
@@ -435,12 +462,12 @@ export default function App() {
               <T>Segnalazioni attive</T>
               {activeReports.map(r=>(
                 <ReportCard key={r.id} r={r}
-                  onConfirm={()=>{ if(hasConfirmed(r.id)) return; confirmReport(r.id, r.confirmed); markConfirmed(r.id); }}
+                  onConfirm={()=>handleConfirm(r.id, r.confirmed)}
                   alreadyConfirmed={hasConfirmed(r.id)}
                   onResolve={()=>setResolveId(r.id)}
                   onMap={()=>setMapReport(r)}
                   onAddNote={()=>setAddNoteId(r.id)}
-                  onToggleSoccorsi={()=>toggleSoccorsi(r.id, r.soccorsi)}
+                  onToggleSoccorsi={()=>handleToggleSoccorsi(r.id, r.soccorsi)}
                 />
               ))}
             </>}
@@ -463,7 +490,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={()=>reactivateReport(r.id)}
+                  <button onClick={()=>handleReactivate(r.id)}
                     style={{width:"100%",padding:"9px 0",borderRadius:8,border:"1px solid #333",
                       background:"rgba(255,255,255,0.04)",color:"#666",
                       fontSize:12,fontWeight:800,cursor:"pointer",letterSpacing:1}}>
@@ -555,7 +582,7 @@ export default function App() {
           <div style={{display:"flex",gap:9}}>
             <button onClick={()=>setResolveId(null)}
               style={{flex:1,padding:"13px",borderRadius:10,border:"1px solid #252836",background:"rgba(255,255,255,0.04)",color:"#888",fontSize:14,fontWeight:700,cursor:"pointer"}}>Annulla</button>
-            <button onClick={async()=>{await resolveReport(resolveId);setResolveId(null);}}
+            <button onClick={()=>handleResolve(resolveId)}
               style={{flex:1,padding:"13px",borderRadius:10,border:"none",background:"#2e7d32",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer"}}>SÌ, RISOLTO</button>
           </div>
         </Modal>
@@ -574,7 +601,7 @@ export default function App() {
           <div style={{display:"flex",gap:9}}>
             <button onClick={()=>{setAddNoteId(null);setAddNoteText("");}}
               style={{flex:1,padding:"12px",borderRadius:10,border:"1px solid #252836",background:"rgba(255,255,255,0.04)",color:"#888",fontSize:13,fontWeight:700,cursor:"pointer"}}>Annulla</button>
-            <button onClick={()=>{addNote(addNoteId,addNoteText);setAddNoteId(null);setAddNoteText("");}} disabled={!addNoteText}
+            <button onClick={()=>handleAddNote(addNoteId,addNoteText)} disabled={!addNoteText}
               style={{flex:1,padding:"12px",borderRadius:10,border:"none",background:addNoteText?"#0277BD":"#1e2030",color:"#fff",fontSize:13,fontWeight:800,cursor:addNoteText?"pointer":"not-allowed"}}>INVIA</button>
           </div>
         </Modal>
@@ -671,29 +698,42 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
 
       {/* Dettaglio espanso */}
       {expanded&&reports.length>0&&(
-        <div style={{borderTop:`1px solid ${sev.color}22`,padding:"10px 12px",background:"rgba(0,0,0,0.3)"}}>
+        <div style={{borderTop:`1px solid ${sev.color}22`,padding:"10px 12px",background:"rgba(0,0,0,0.25)"}}>
+          {/* Banner CONFERMI */}
+          <div style={{
+            padding:"6px 10px",marginBottom:8,borderRadius:7,
+            background:"rgba(67,160,71,0.08)",border:"1px solid rgba(67,160,71,0.18)",
+            fontSize:10,color:"#4a9a5a",letterSpacing:2,fontWeight:800,textAlign:"center",
+          }}>
+            CONFERMI? PREMI IL NUMERO VERDE
+          </div>
           {reports.map(r=>(
             <div key={r.id} style={{display:"flex",alignItems:"center",gap:10,
               padding:"10px",marginBottom:6,borderRadius:10,
               background:`rgba(${hexToRgb(r.color)},0.07)`,border:`1px solid ${r.color}22`}}>
-              <span style={{fontSize:22}}>{r.emoji}</span>
+              <div style={{
+                width:8,height:8,borderRadius:"50%",flexShrink:0,
+                background:r.color,boxShadow:`0 0 6px ${r.color}`,
+              }}/>
               <div style={{flex:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                  <span style={{fontSize:14,fontWeight:800,color:r.color}}>{r.label}</span>
-                  {r.soccorsi&&<span style={{fontSize:10,color:"#66bb6a",background:"rgba(67,160,71,0.15)",padding:"1px 7px",borderRadius:10,fontWeight:700}}>🚑 soccorsi allertati</span>}
+                  <span style={{fontSize:14,fontWeight:800,color:r.color,letterSpacing:1}}>{r.label}</span>
+                  {r.soccorsi&&<span style={{fontSize:10,color:"#66bb6a",background:"rgba(67,160,71,0.15)",padding:"1px 7px",borderRadius:10,fontWeight:700}}>soccorsi allertati</span>}
                 </div>
-                <div style={{fontSize:11,color:"#666",marginTop:2}}>{r.kmLabel} · {r.loc||""} · {r.time||""}</div>
+                <div style={{fontSize:11,color:"#666",marginTop:2}}>{r.kmLabel} · {r.loc||""}</div>
                 {r.note&&<div style={{fontSize:11,color:"#888",marginTop:3,fontStyle:"italic"}}>"{r.note}"</div>}
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              <div style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0}}>
                 <button onClick={()=>onConfirm(r.id,r.confirmed)}
-                  style={{padding:"5px 9px",borderRadius:7,border:"1px solid #2e7d3244",
-                    background:"rgba(67,160,71,0.1)",color:"#66bb6a",fontSize:11,fontWeight:800,cursor:"pointer"}}>
-                  👍 {r.confirmed}
+                  style={{padding:"5px 14px",borderRadius:7,border:"1px solid #2e7d3244",
+                    background:"rgba(67,160,71,0.15)",color:"#66bb6a",
+                    fontSize:14,fontWeight:900,cursor:"pointer"}}>
+                  {r.confirmed}
                 </button>
                 <button onClick={()=>onMap(r)}
-                  style={{padding:"5px 9px",borderRadius:7,border:"1px solid #1e3a5f",
-                    background:"rgba(2,88,161,0.12)",color:"#42a5f5",fontSize:11,cursor:"pointer"}}>🗺️</button>
+                  style={{padding:"4px 8px",borderRadius:7,border:"1px solid #1e3a5f",
+                    background:"rgba(2,88,161,0.12)",color:"#42a5f5",
+                    fontSize:10,cursor:"pointer",letterSpacing:0.5}}>MAP</button>
               </div>
             </div>
           ))}
@@ -701,6 +741,8 @@ function DirStrip({label,reports,sev,expanded,onToggle,onConfirm,onMap}){
       )}
     </div>
   );
+}
+
 }
 
 // ── ReportCard ────────────────────────────────────────────────
