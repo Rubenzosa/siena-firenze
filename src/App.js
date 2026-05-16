@@ -325,9 +325,12 @@ export default function App(){
                       </div>
                       <span style={{color:th.textFaint,flexShrink:0}}><ChevronRight size={18} strokeWidth={2.5}/></span>
                     </div>
-                    <div style={{padding:"0 16px 12px"}}>
-                      <button onClick={e=>{e.stopPropagation();handleConfirm(r.id,r.confirmed);}} disabled={alreadyConf} style={{width:"100%",padding:"8px 0",borderRadius:10,border:"1px solid",borderColor:alreadyConf?th.border:"rgba(34,197,94,.3)",background:alreadyConf?"transparent":"rgba(34,197,94,.08)",color:alreadyConf?th.textFaint:"#16a34a",fontSize:12,fontWeight:800,cursor:alreadyConf?"not-allowed":"pointer",letterSpacing:.5,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                    <div style={{padding:"0 16px 12px",display:"flex",gap:8}}>
+                      <button onClick={e=>{e.stopPropagation();handleConfirm(r.id,r.confirmed);}} disabled={alreadyConf} style={{flex:1,padding:"8px 0",borderRadius:10,border:"1px solid",borderColor:alreadyConf?th.border:"rgba(34,197,94,.3)",background:alreadyConf?"transparent":"rgba(34,197,94,.08)",color:alreadyConf?th.textFaint:"#16a34a",fontSize:12,fontWeight:800,cursor:alreadyConf?"not-allowed":"pointer",letterSpacing:.5,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
                         <ThumbsUp size={11}/> {alreadyConf?"CONFERMATO":"CONFERMO"} ({r.confirmed||0})
+                      </button>
+                      <button onClick={e=>{e.stopPropagation();setResolveId(r.id);}} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid ${th.border}`,background:"transparent",color:th.textSub,fontSize:12,fontWeight:800,cursor:"pointer",letterSpacing:.5,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                        <CheckCircle size={11}/> RISOLTO
                       </button>
                     </div>
                   </div>
