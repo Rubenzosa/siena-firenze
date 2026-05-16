@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── RA3 Raccordo Autostradale 3 — Tangenziale Siena → Firenze ──
 // Km ufficiali: Wikipedia "Raccordo autostradale 3" (totale 56,3 km)
+// km 0.0 (innesto tangenziale) coincide con TANG[0]: non duplicare qui
 const RA3_POINTS = [
-  { km:  0.0, lat: 43.3270, lng: 11.2930, loc: "Tangenziale di Siena (inizio RA3)" },
   { km:  1.3, lat: 43.3394, lng: 11.2994, loc: "Siena Nord" },
   { km:  5.9, lat: 43.3760, lng: 11.2600, loc: "Badesse" },
   { km: 10.4, lat: 43.3958, lng: 11.2191, loc: "Monteriggioni" },
@@ -63,21 +63,41 @@ function getLocInfo(kmVal, pts) {
 }
 
 function interpolateKm(lat, lng, pts, closestIdx) {
-  let km = pts[closestIdx].km;
-  if (closestIdx > 0 && closestIdx < pts.length - 1) {
+  const curr = pts[closestIdx];
+  const dCurr = distanceKm(lat, lng, curr.lat, curr.lng);
+  let km = curr.km;
+
+  if (closestIdx === 0 && pts.length > 1) {
+    // Punto iniziale: interpola verso il successivo
+    const next = pts[1];
+    const dNext = distanceKm(lat, lng, next.lat, next.lng);
+    const tot = dCurr + dNext;
+    if (tot > 0) km = curr.km + (dCurr / tot) * (next.km - curr.km);
+  } else if (closestIdx === pts.length - 1 && pts.length > 1) {
+    // Punto finale: interpola verso il precedente
+    const prev = pts[pts.length - 2];
+    const dPrev = distanceKm(lat, lng, prev.lat, prev.lng);
+    const tot = dCurr + dPrev;
+    if (tot > 0) km = curr.km - (dCurr / tot) * (curr.km - prev.km);
+  } else {
+    // Punto intermedio: interpola verso il lato più vicino
     const prev = pts[closestIdx - 1];
     const next = pts[closestIdx + 1];
-    const curr = pts[closestIdx];
     const dPrev = distanceKm(lat, lng, prev.lat, prev.lng);
     const dNext = distanceKm(lat, lng, next.lat, next.lng);
-    const dCurr = distanceKm(lat, lng, curr.lat, curr.lng);
     if (dPrev < dNext) {
-      km = curr.km - (dCurr / (dCurr + dPrev)) * (curr.km - prev.km);
+      const tot = dCurr + dPrev;
+      if (tot > 0) km = curr.km - (dCurr / tot) * (curr.km - prev.km);
     } else {
-      km = curr.km + (dCurr / (dCurr + dNext)) * (next.km - curr.km);
+      const tot = dCurr + dNext;
+      if (tot > 0) km = curr.km + (dCurr / tot) * (next.km - curr.km);
     }
   }
-  return Math.round(km * 10) / 10;
+
+  // Clamp entro i limiti della strada
+  const kmMin = pts[0].km;
+  const kmMax = pts[pts.length - 1].km;
+  return Math.round(Math.max(kmMin, Math.min(kmMax, km)) * 10) / 10;
 }
 
 function buildPosition(lat, lng, pts, closestIdx, minDist, road) {
