@@ -5,11 +5,12 @@
       <stop offset="100%" stop-color="#1d4ed8"/>
     </linearGradient>
   </defs>
-  <!-- Background: arrotondato (rx 22% per compatibilità iOS) -->
-  <rect width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
-  <!-- Activity wave — stessa icona dell'header app -->
+  <!-- Full-bleed background (nessun rx — Android applica la propria maschera) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Wave centrata nella safe zone (10% padding = 51px per lato) -->
+  <!-- Ridotta leggermente rispetto all'icon.svg per stare nella safe zone -->
   <polyline
-    points="424,256 357,256 306,407 206,105 155,256 88,256"
+    points="400,256 340,256 294,390 218,122 172,256 112,256"
     fill="none"
     stroke="white"
     stroke-width="30"
