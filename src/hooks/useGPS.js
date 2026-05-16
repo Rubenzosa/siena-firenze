@@ -20,15 +20,18 @@ const RA3_POINTS = [
   { km: 56.3, lat: 43.6930, lng: 11.2280, loc: "Firenze Scandicci (Fine RA3)" },
 ];
 
-// ── SS674 Tangenziale Ovest di Siena — km 0 (SS223/Siena) → km 8,3 (RA3) ──
-// Chilometraggio progressivo: km 0 = innesto SS223 lato Siena, km 8,3 = innesto RA3
+// ── SS674 Tangenziale Ovest di Siena — km 0.0 (RA3) → km 8.3 (SS223 Grosseto) ──
+// Chilometraggio ufficiale da Wikipedia / kmtang.JPG
 const TANG_POINTS = [
-  { km: 0.0, lat: 43.2838, lng: 11.2518, loc: "Siena / SS223" },
-  { km: 0.6, lat: 43.2890, lng: 11.2490, loc: "Siena Sud" },
-  { km: 1.8, lat: 43.2985, lng: 11.2440, loc: "Siena Ovest" },
-  { km: 5.8, lat: 43.3190, lng: 11.2800, loc: "Acqua Calda" },
-  { km: 8.0, lat: 43.3368, lng: 11.2978, loc: "Siena Nord" },
-  { km: 8.3, lat: 43.3394, lng: 11.2994, loc: "Innesto RA3 (Siena Nord)" },
+  { km: 0.0, lat: 43.3394, lng: 11.2994, loc: "Innesto RA3" },
+  { km: 0.3, lat: 43.3368, lng: 11.2978, loc: "Siena Nord" },            // SS2 Cassia Nord · SS222 Chiantigiana
+  { km: 2.5, lat: 43.3190, lng: 11.2800, loc: "Acqua Calda - Petriccio" },
+  { km: 5.7, lat: 43.3026, lng: 11.2512, loc: "A/S Siena Tangenziale" }, // area di servizio
+  { km: 6.1, lat: 43.3006, lng: 11.2476, loc: "A/S San Marco" },          // area di servizio
+  { km: 6.5, lat: 43.2985, lng: 11.2440, loc: "Siena Ovest" },            // Porta San Marco · Aeroporto · SS73
+  { km: 7.7, lat: 43.2890, lng: 11.2490, loc: "Siena Sud" },              // Porta Romana · Porta Tufi · SS2 Buonconvento
+  { km: 8.2, lat: 43.2847, lng: 11.2513, loc: "SS223 Arezzo" },           // E78 SS223 Arezzo/Perugia
+  { km: 8.3, lat: 43.2838, lng: 11.2518, loc: "Fine SS674 / SS223 Grosseto" },
 ];
 
 function distanceKm(lat1, lng1, lat2, lng2) {
