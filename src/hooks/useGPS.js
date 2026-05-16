@@ -1,31 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ── RA3 Raccordo Autostradale 3 — Siena Nord → Firenze ────────
+// ── RA3 Raccordo Autostradale 3 — Tangenziale Siena → Firenze ──
+// Km ufficiali: Wikipedia "Raccordo autostradale 3" (totale 56,3 km)
 const RA3_POINTS = [
-  { km:  0.0, lat: 43.3394, lng: 11.2994, loc: "Siena Nord" },
-  { km:  6.0, lat: 43.3760, lng: 11.2600, loc: "Badesse" },
-  { km: 10.0, lat: 43.3958, lng: 11.2191, loc: "Monteriggioni" },
-  { km: 16.0, lat: 43.4280, lng: 11.1720, loc: "Colle Val d'Elsa Sud" },
-  { km: 18.0, lat: 43.4420, lng: 11.1580, loc: "Colle Val d'Elsa Nord" },
-  { km: 23.0, lat: 43.4660, lng: 11.1410, loc: "Poggibonsi Sud" },
-  { km: 25.0, lat: 43.4820, lng: 11.1350, loc: "Poggibonsi Nord" },
-  { km: 35.0, lat: 43.5380, lng: 11.1430, loc: "San Donato in Poggio" },
-  { km: 40.0, lat: 43.5650, lng: 11.1460, loc: "Tavarnelle Val di Pesa" },
-  { km: 45.0, lat: 43.5990, lng: 11.1540, loc: "Bargino" },
-  { km: 48.0, lat: 43.6190, lng: 11.1680, loc: "San Casciano Sud" },
-  { km: 51.0, lat: 43.6430, lng: 11.1830, loc: "San Casciano Nord" },
+  { km:  0.0, lat: 43.3270, lng: 11.2930, loc: "Tangenziale di Siena (inizio RA3)" },
+  { km:  1.3, lat: 43.3394, lng: 11.2994, loc: "Siena Nord" },
+  { km:  5.9, lat: 43.3760, lng: 11.2600, loc: "Badesse" },
+  { km: 10.4, lat: 43.3958, lng: 11.2191, loc: "Monteriggioni" },
+  { km: 15.6, lat: 43.4280, lng: 11.1720, loc: "Colle Val d'Elsa Sud" },
+  { km: 18.8, lat: 43.4420, lng: 11.1580, loc: "Colle Val d'Elsa Nord" },
+  { km: 22.8, lat: 43.4660, lng: 11.1410, loc: "Poggibonsi Sud" },
+  { km: 25.1, lat: 43.4820, lng: 11.1350, loc: "Poggibonsi Nord" },
+  { km: 35.6, lat: 43.5380, lng: 11.1430, loc: "San Donato in Poggio" },
+  { km: 40.5, lat: 43.5650, lng: 11.1460, loc: "Tavarnelle Val di Pesa" },
+  { km: 44.3, lat: 43.5990, lng: 11.1540, loc: "Bargino" },
+  { km: 47.3, lat: 43.6190, lng: 11.1680, loc: "San Casciano Sud" },
+  { km: 50.2, lat: 43.6430, lng: 11.1830, loc: "San Casciano Nord" },
   { km: 53.0, lat: 43.6640, lng: 11.2050, loc: "Impruneta / Greve in Chianti" },
-  { km: 56.4, lat: 43.6930, lng: 11.2280, loc: "Firenze (Fine RA3)" },
+  { km: 56.3, lat: 43.6930, lng: 11.2280, loc: "Firenze Scandicci (Fine RA3)" },
 ];
 
-// ── SS674 Tangenziale Ovest di Siena — 8.3 km ─────────────────
+// ── SS674 Tangenziale Ovest di Siena — km 0 (SS223/Siena) → km 8,3 (RA3) ──
+// Chilometraggio progressivo: km 0 = innesto SS223 lato Siena, km 8,3 = innesto RA3
 const TANG_POINTS = [
-  { km: 0.0, lat: 43.3394, lng: 11.2994, loc: "Innesto RA3 / Siena Nord" },
-  { km: 0.3, lat: 43.3368, lng: 11.2978, loc: "Siena Nord" },
-  { km: 2.5, lat: 43.3190, lng: 11.2800, loc: "Acqua Calda" },
-  { km: 6.5, lat: 43.2985, lng: 11.2440, loc: "Siena Ovest" },
-  { km: 7.7, lat: 43.2890, lng: 11.2490, loc: "Siena Sud" },
-  { km: 8.3, lat: 43.2838, lng: 11.2518, loc: "Fine SS674 / SS223" },
+  { km: 0.0, lat: 43.2838, lng: 11.2518, loc: "Siena / SS223" },
+  { km: 0.6, lat: 43.2890, lng: 11.2490, loc: "Siena Sud" },
+  { km: 1.8, lat: 43.2985, lng: 11.2440, loc: "Siena Ovest" },
+  { km: 5.8, lat: 43.3190, lng: 11.2800, loc: "Acqua Calda" },
+  { km: 8.0, lat: 43.3368, lng: 11.2978, loc: "Siena Nord" },
+  { km: 8.3, lat: 43.3394, lng: 11.2994, loc: "Innesto RA3 (Siena Nord)" },
 ];
 
 function distanceKm(lat1, lng1, lat2, lng2) {
