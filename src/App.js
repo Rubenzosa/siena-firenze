@@ -306,22 +306,30 @@ export default function App(){
               {homeReps.map(r=>{
                 const sc=sevColor(r.label);
                 const ta=timeAgo(r.createdAt);
+                const alreadyConf=hasConfirmed(r.id);
                 return(
-                  <div key={r.id} onClick={()=>setMapReport(r)} style={{padding:16,borderRadius:24,display:"flex",alignItems:"center",gap:20,border:`1px solid ${th.borderLight}`,background:th.bgCard,boxShadow:darkMode?"none":"0 2px 12px rgba(0,0,0,.06)",cursor:"pointer",transition:"transform .15s",active:{transform:"scale(.97)"}}}>
-                    <div style={{width:56,height:56,borderRadius:16,background:sc.bg,color:sc.fg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                      <ReportIcon label={r.label} size={26}/>
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                        <span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:th.bgMuted,color:th.textSub,fontWeight:700}}>Dir. {r.dirProblema}</span>
-                        {ta&&<span style={{fontSize:11,color:th.textFaint,fontWeight:500}}>{ta}</span>}
+                  <div key={r.id} style={{borderRadius:24,border:`1px solid ${th.borderLight}`,background:th.bgCard,boxShadow:darkMode?"none":"0 2px 12px rgba(0,0,0,.06)",overflow:"hidden"}}>
+                    <div onClick={()=>setMapReport(r)} style={{padding:16,display:"flex",alignItems:"center",gap:20,cursor:"pointer"}}>
+                      <div style={{width:56,height:56,borderRadius:16,background:sc.bg,color:sc.fg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <ReportIcon label={r.label} size={26}/>
                       </div>
-                      <div style={{fontSize:15,fontWeight:700,letterSpacing:"-.2px",lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                        {r.kmLabel}{r.locInfo?` · ${r.locInfo}`:""}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                          <span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:th.bgMuted,color:th.textSub,fontWeight:700}}>Dir. {r.dirProblema}</span>
+                          {ta&&<span style={{fontSize:11,color:th.textFaint,fontWeight:500}}>{ta}</span>}
+                        </div>
+                        <div style={{fontSize:15,fontWeight:700,letterSpacing:"-.2px",lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          {r.kmLabel}{r.locInfo?` · ${r.locInfo}`:""}
+                        </div>
+                        <div style={{fontSize:12,color:sc.fg,fontWeight:600,marginTop:2}}>{r.label}</div>
                       </div>
-                      <div style={{fontSize:12,color:sc.fg,fontWeight:600,marginTop:2}}>{r.label}</div>
+                      <span style={{color:th.textFaint,flexShrink:0}}><ChevronRight size={18} strokeWidth={2.5}/></span>
                     </div>
-                    <span style={{color:th.textFaint,flexShrink:0}}><ChevronRight size={18} strokeWidth={2.5}/></span>
+                    <div style={{padding:"0 16px 12px"}}>
+                      <button onClick={e=>{e.stopPropagation();handleConfirm(r.id,r.confirmed);}} disabled={alreadyConf} style={{width:"100%",padding:"8px 0",borderRadius:10,border:"1px solid",borderColor:alreadyConf?th.border:"rgba(34,197,94,.3)",background:alreadyConf?"transparent":"rgba(34,197,94,.08)",color:alreadyConf?th.textFaint:"#16a34a",fontSize:12,fontWeight:800,cursor:alreadyConf?"not-allowed":"pointer",letterSpacing:.5,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                        <ThumbsUp size={11}/> {alreadyConf?"CONFERMATO":"CONFERMO"} ({r.confirmed||0})
+                      </button>
+                    </div>
                   </div>
                 );
               })}
